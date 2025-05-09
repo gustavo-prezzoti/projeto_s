@@ -1,0 +1,422 @@
+.certidao-page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.certidao-actions {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.back-button,
+.print-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f0f2f5;
+  border: none;
+  border-radius: 4px;
+  color: #333;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-button:hover,
+.print-button:hover {
+  background: #e0e4ea;
+}
+
+.print-button {
+  background: #1a73e8;
+  color: white;
+}
+
+.print-button:hover {
+  background: #1557b0;
+}
+
+.certidao-container {
+  width: 100%;
+  max-width: 900px;
+  min-height: 80vh;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  padding-top: 2rem;
+}
+
+/* Remove the pseudo-element watermark */
+.certidao-container::before {
+  display: none;
+}
+
+/* Add styling for the real watermark element */
+.certidao-watermark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.certidao-watermark img {
+  width: 80%;
+  max-width: 600px;
+  height: auto;
+  opacity: 0.06;
+  filter: grayscale(100%);
+}
+
+.certidao-watermark .default-watermark {
+  font-size: 180px;
+  font-weight: bold;
+  opacity: 0.06;
+  color: #333;
+  font-family: 'Times New Roman', Times, serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.certidao-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 1rem;
+  margin-bottom: 0.2rem;
+  width: 100%;
+  padding-left: 3.5rem;
+  padding-right: 3.5rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 20;
+}
+
+.certidao-brasao {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 0;
+}
+
+.certidao-brasao img {
+  max-width: 110px;
+  max-height: 110px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 0;
+}
+
+.certidao-header-text {
+  flex: 1;
+  text-align: left;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.05rem;
+  color: #222;
+  line-height: 1.18;
+  font-weight: normal;
+  margin-top: 0;
+}
+
+.certidao-header-text b, 
+.certidao-header-text strong {
+  font-weight: 900;
+  font-size: 1.09rem;
+  letter-spacing: 0.2px;
+}
+
+.certidao-title {
+  text-align: center;
+  margin: 1.5rem 0 1.5rem 0;
+  font-family: 'Times New Roman', Times, serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 20;
+}
+
+.certidao-title h3 {
+  color: #000;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 0 0 0.4rem 0;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.certidao-numero {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-top: 0.1rem;
+  margin-bottom: 0.2rem;
+  color: #000;
+  letter-spacing: 0.5px;
+}
+
+.certidao-content {
+  position: relative;
+  font-family: 'Times New Roman', Times, serif;
+  color: #222;
+  background: #fff;
+  border-radius: 0;
+  padding: 0.5rem 3.5rem 2rem 3.5rem;
+  margin: 0 auto;
+  text-align: left;
+  z-index: 20;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  flex: 1;
+}
+
+.certidao-content * {
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  font-family: 'Times New Roman', Times, serif !important;
+}
+
+.certidao-content p {
+  margin-bottom: 0.1rem;
+}
+
+.certidao-content p:last-child {
+  margin-bottom: 0;
+}
+
+.certidao-content i {
+  font-size: 1.05rem;
+  margin: 0.3rem 0;
+  line-height: 1.5;
+  z-index: 1;
+}
+
+.certidao-content b {
+  color: #000;
+  font-weight: bold;
+}
+
+.certidao-content header {
+  text-align: left;
+  margin-bottom: 1.2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.certidao-content h3 {
+  color: #000;
+  font-size: 1.55rem;
+  font-weight: bold;
+  margin: 1.5rem 0 0.7rem 0;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.certidao-loading {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.emitido-direita {
+  text-align: right !important;
+  margin-top: 1.5rem !important;
+  font-size: 1.05rem !important;
+  font-family: 'Times New Roman', Times, serif !important;
+  color: #222 !important;
+}
+
+/* Responsividade */
+@media (max-width: 900px) {
+  .certidao-container {
+    border-radius: 0;
+  }
+  
+  .certidao-content {
+    padding: 0.5rem 1.5rem 2rem 1.5rem;
+  }
+  
+  .certidao-header {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .certidao-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+  }
+  
+  .certidao-brasao {
+    margin-bottom: 0.5rem;
+  }
+  
+  .certidao-header-text {
+    text-align: center;
+  }
+  
+  .certidao-title h3 {
+    font-size: 1.4rem;
+  }
+  
+  .certidao-content {
+    padding: 0.5rem 1rem 1.5rem 1rem;
+  }
+}
+
+/* Estilos para impressão */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .certidao-page,
+  .certidao-container,
+  .certidao-container * {
+    visibility: visible;
+  }
+  
+  .certidao-container::before {
+    display: none !important;
+  }
+  
+  .certidao-watermark {
+    display: flex !important;
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 100 !important;
+  }
+  
+  .certidao-watermark img {
+    opacity: 0.08 !important;
+  }
+  
+  .certidao-actions {
+    display: none !important;
+  }
+  
+  .certidao-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .certidao-container {
+    box-shadow: none;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    position: relative !important;
+  }
+  
+  .certidao-content {
+    padding: 0 1.5cm 1cm 1.5cm;
+    position: relative !important;
+    z-index: 20 !important;
+  }
+  
+  .certidao-header {
+    padding: 1.5cm 1.5cm 0 1.5cm;
+    position: relative !important;
+    z-index: 20 !important;
+  }
+  
+  .certidao-title {
+    position: relative !important;
+    z-index: 20 !important;
+    margin: 1rem 0 1rem 0;
+  }
+  
+  .certidao-watermark .default-watermark {
+    opacity: 0.08 !important;
+  }
+  
+  .certidao-content p, 
+  .certidao-content i {
+    margin: 0.2rem 0;
+    line-height: 1.3;
+  }
+}
+
+.certidao-error {
+  padding: 2rem;
+  text-align: center;
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  margin: 2rem;
+}
+
+.certidao-error p {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.page-title {
+  width: 100%;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: white;
+  margin: 0 0 1.5rem 0;
+  padding: 1rem 0;
+  background-color: #1a73e8;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@media print {
+  .page-title {
+    display: none !important;
+  }
+} 

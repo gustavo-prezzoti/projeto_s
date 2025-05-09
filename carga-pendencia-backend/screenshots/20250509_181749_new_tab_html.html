@@ -1,0 +1,197 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<style>
+body {
+background-color: grey;
+}
+div#interface {
+background-color: #ffffff;
+padding: 10px 10px 10px 10px;
+}
+</style>
+</head>
+<body onload="imprimir()">
+<div id="interface">
+<style>
+  p {
+    margin: 0;
+  }
+
+  .municipio {
+    display: flex;
+    align-items:center
+  }
+  .municipio img {
+    width: 80px;
+  }
+
+  .documento {
+    text-align: center;
+  }
+  .detalhe {
+    display: flex;
+    width: 100%;
+  }
+
+  .texto {
+    margin-top: 20px;
+  }
+</style>
+<div style="z-index: 9999; position: absolute">
+<header>
+<div class="municipio">
+<img alt="" src="https://gpi18.cloud.el.com.br/ServerExec/acessoBase/acessoclientbase/uploadGgImagem?id=2bea167d-0434-4b2e-9b7c-c9a0ca143cd6&amp;mainSessionId=f8v13nyp8lBW954apyOCAHTrRv7I76_vqRHk1rrR:1725978474581"/>
+<div style="margin-left: 20px">
+<p>
+            PREFEITURA MUNICIPAL DE NOVA FRIBURGO <br/>
+            AVE ALBERTO BRAUNE, 255, CENTRO - NOVA FRIBURGO - RIO DE JANEIRO
+            <br/>
+            CNPJ: 28.606.630/0001-23 Telefone: 22225259100 <br/>
+<b>SECRETARIA MUNICIPAL DE FINANÇAS, PLANEJAMENTO, DESENVOLVIMENTO
+              ECONÔMICO E GESTÃO</b>
+</p>
+</div>
+</div>
+<div class="documento">
+<h3>
+          CERTIDÃO POSITIVA COM EFEITO DE CERTIDÃO NEGATIVA <br/>
+          Nº 21571/2025
+        </h3>
+</div>
+</header>
+<main>
+<div class="detalhe">
+<div style="width: 75%;">
+<p>
+<i>Contribuinte</i> GILBERTO GASTIN E BORGES CONFECCAO E COMERCIO LTDA <br/>
+<i>Inscrição Municipal</i>
+</p>
+</div>
+<div style="text-align: right; width: 25%;">
+<p>
+<i>CNPJ</i> 00.378.460/0001-58
+          </p>
+</div>
+</div>
+<p><i>Endereço</i> Não Identificado RUA PREFEITO GUSTAVO LIRA Nº64, LOJA - Olaria - Nova Friburgo-RJ CEP: 28623-390</p>
+<div class="texto">
+<p>
+          Ressalvado o direito de a Fazenda Municipal cobrar e inscrever quaisquer dívidas de responsabilidade do
+          sujeito passivo acima identificado que vierem a ser apuradas, de acordo com o artigo 355 do Código
+          Tributário Municipal, LCM n.o 124, de 28/09/2018, é certificado que constam pendências em nome do
+          sujeito passivo, relativas aos créditos de natureza tributária e inscritos em dívida ativa, administrados pela
+          Secretaria Municipal de Finanças, Planejamento, Desenvolvimento Econômico e Gestão, porém, com
+          exigibilidade suspensa, nos termos dos artigos 41 e 356, ambos do CTM.          
+    
+          <br/><br/>
+          A aceitação desta certidão será condicionada à verificação de sua
+          autenticidade na Internet, pelo site oficial da Prefeitura Municipal
+          de Nova Friburgo
+
+          <br/><br/><b> Validade: 07/08/2025 </b>
+<br/><br/>O Prazo de validade da Certidão é de 90 (noventa) dias, a
+          contar da data da sua emissão. <br/><br/>
+          Chave de Validação WEB: b2e0427e
+        </p>
+<p style="text-align: right">Emitido em: Sexta-feira, 9 de Maio de 2025</p>
+</div>
+</main>
+</div>
+<img alt="" src="https://gpi18.cloud.el.com.br/ServerExec/acessoBase/acessoclientbase/uploadGgImagem?id=2bea167d-0434-4b2e-9b7c-c9a0ca143cd6&amp;mainSessionId=f8v13nyp8lBW954apyOCAHTrRv7I76_vqRHk1rrR:1725978474581" style="width: 100%; z-index: 2; position: absolute; opacity: 0.1"/>
+<!-- SELECT 
+  TRB_DOCS_EMITIDOS.ANO AS ANO,
+  TRB_DOCS_EMITIDOS.NUMERO,
+  TO_CHAR(TRB_DOCS_EMITIDOS.DATA_GERACAO,'DD/MM/YYYY') AS DATA_GERACAO,
+  TO_CHAR(TRB_DOCS_EMITIDOS.DATA_GERACAO+60,'DD/MM/YYYY') AS DATA_VENCIMENTO,
+  SUBSTRING(TRB_DOCS_EMITIDOS.ID, 1, 8) AS "CHAVE",
+  GG_PESSOA.ID,
+  TRB_DOCS_EMITIDOS.OBSERVACAO,
+  TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,
+  CASE WHEN COALESCE(END_CAD."CODIGO_CONTRIBUINTE_TIPO",'') <> '02' THEN '' ELSE 'IMOBILIÁRIA ' END AS TIPO_CND,
+  CASE 
+    WHEN COALESCE(END_CAD."CODIGO_CONTRIBUINTE_TIPO", '') <> '02' THEN 
+      UPPER('C') || LOWER('ERTIFICAMOS QUE, ATÉ A PRESENTE DATA, NÃO EXISTEM DÉBITOS DE TRIBUTOS MUNICIPAIS REFERENTES AO IMÓVEL ACIMA DESCRITO, RESSALVANDO O DIREITO DE ') || 
+      UPPER('F') || LOWER('AZENDA ') || 
+      UPPER('M') || LOWER('UNICIPAL COBRAR QUAISQUER DÍVIDAS QUE VENHAM A SER APURADAS.')
+    ELSE 
+      UPPER('R') || LOWER('ESSALVADO O DIREITO DE A ') || 
+      UPPER('F') || LOWER('AZENDA ') || 
+      UPPER('M') || LOWER('UNICIPAL COBRAR E INSCREVER QUAISQUER DÍVIDAS DE RESPONSABILIDADE DO SUJEITO PASSIVO ACIMA IDENTIFICADO QUE VIEREM A SER APURADAS, DE ACORDO COM O ARTIGO 355, DO ') || 
+      UPPER('C') || LOWER('ÓDIGO TRIBUTÁRIO MUNICIPAL,') ||
+    UPPER(' LCM') || LOWER(' N.º 124, DE 28/09/2018, É CERTIFICADO QUE NÃO CONSTAM PENDÊNCIAS EM NOME DA ') ||
+    UPPER('P') || LOWER('ESSOA ') || 
+    UPPER('F') || LOWER('ÍSICA, RELATIVAS AOS CRÉDITOS DE NATUREZA TRIBUTÁRIA E INSCRITOS EM DÍVIDA ATIVA. ')
+  END AS TEXTO,
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN 'DEVIDAMENTE INSCRITO SOB O ' ELSE '' END AS TEXTO_GERAL,
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN '' ELSE 'DEVIDAMENTE INSCRITO NESTA MUNÍCIPALIDADE SOB O Nº: ' END AS TEXTO_INSC,
+  COALESCE(CAST(COALESCE(END_CAD."INSCRICAO_MUNICIPAL",NULL) AS VARCHAR),'') AS INSC,
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN COALESCE(GG_PESSOA.NOME_GERAL,'') ELSE COALESCE(END_CAD."NOME_CONTRIBUINTE",'') END AS NOME,
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN COALESCE(GG_PESSOA.NUMERO_DOCUMENTO_JURIDICO,'') ELSE COALESCE(END_CAD."DOCUMENTO",'') END AS CPF_CNPJ,
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN '' ELSE 'LOTEAMENTO: '||COALESCE('QUADRA: '||COALESCE(END_CAD."QUADRA_ZONE",'')||' LOTE: '||COALESCE(END_CAD."LOTE_ZONE",'')|| ' UNIDADE: '||COALESCE(END_CAD."UNIDADE_ZONE",'')) END AS "LOTEAMENTO", 
+  CASE WHEN COALESCE(TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO,'') = '' THEN
+  COALESCE(CEP_TIPO_LOGRA.NOME_TIPO_LOGRA,'')||' '||
+  COALESCE(GG_LOGRADOURO.NOME_LOGRADOURO,'')||' Nº'||
+  COALESCE(GG_PESSOA_ENDERECO.NUMERO_LOGRADOURO,' ')||', '||
+  COALESCE(GG_PESSOA_ENDERECO.COMPLEMENTO_LOGRADOURO,'')||' - '||
+  COALESCE(GG_BAIRRO.NOME_BAIRRO,'')|| ' - '||
+  COALESCE(CEP_LOCALIDADE.NOME_LOCALIDADE,'')||'-'||
+  COALESCE(CEP_ESTADO.SIGLA_ESTADO,'')||' CEP: '||
+  COALESCE(GG_PESSOA_ENDERECO.CEP_ENDERECO, '') 
+  ELSE
+  COALESCE(END_CAD."TIPO_LOGRADOURO",'')||' '||
+  COALESCE(END_CAD."NOME_LOGRADOURO",'')||' Nº'||
+  COALESCE(END_CAD."NUMERO_LOGRADOURO",' ')||', '||
+  COALESCE(CADCONTR.COMPLEMENTO_LOGRADOURO, '')||' - '||
+  COALESCE(END_CAD."NOME_BAIRRO",'')|| ' - '||
+  COALESCE(END_CAD."NOME_LOCALIDADE",'')||'-'||
+  COALESCE(END_CAD."SIGLA_ESTADO",'')||' CEP: '||
+  COALESCE(CADCONTR.CEP, '')
+  END AS "ENDERECO",
+  CASE WHEN LENGTH(COALESCE(GG_PESSOA.NUMERO_DOCUMENTO_JURIDICO,'')) > '14' THEN 'CNPJ' ELSE 'CPF' END TIPO_PESSOA,
+  CASE WHEN (COALESCE(TPC.CODIGO_CONTRIBUINTE_TIPO,'') = '') OR (COALESCE(TPC.CODIGO_CONTRIBUINTE_TIPO,'') <> '02') THEN '' ELSE 'REFERENTE AO ÍMOVEL ' END TEXTO_INSC_CND,
+  CURRENT_TIME AS "HORA"
+  
+  FROM EL_TRIBUTARIO.TRB_DOCS_EMITIDOS TRB_DOCS_EMITIDOS 
+  
+  --INFORMAÇÕES DA PESSOA
+  LEFT JOIN EL_ACESSO.GG_PESSOA  GG_PESSOA ON
+  GG_PESSOA.ID = TRB_DOCS_EMITIDOS.ID_PESSOA
+  
+  LEFT JOIN EL_ACESSO.GG_PESSOA_FIS_NAC NAC ON
+  NAC.ID = GG_PESSOA.ID
+  
+  LEFT JOIN EL_ACESSO.GG_PESSOA_ENDERECO GG_PESSOA_ENDERECO ON 
+  GG_PESSOA_ENDERECO.ID_PESSOA = GG_PESSOA.ID  AND
+  UPPER(EL_ACESSO.FUNC_GG_STRING_PESQUISA(GG_PESSOA_ENDERECO.ENDERECO_TIPO)) = 'CORRESPONDENCIA'
+  
+  LEFT JOIN EL_ACESSO.GG_LOGRADOURO GG_LOGRADOURO ON GG_LOGRADOURO.ID =
+   GG_PESSOA_ENDERECO.ID_LOGRADOURO
+   
+  LEFT JOIN EL_ACESSO.CEP_TIPO_LOGRA CEP_TIPO_LOGRA ON CEP_TIPO_LOGRA.ID =
+   GG_LOGRADOURO.ID_CEP_TIPO_LOGRA
+   
+  LEFT JOIN EL_ACESSO.GG_BAIRRO GG_BAIRRO ON GG_BAIRRO.ID =
+   GG_PESSOA_ENDERECO.ID_BAIRRO
+   
+  LEFT JOIN EL_ACESSO.CEP_LOCALIDADE CEP_LOCALIDADE ON CEP_LOCALIDADE.ID =
+   GG_PESSOA_ENDERECO.ID_CEP_LOCALIDADE
+   
+  LEFT JOIN EL_ACESSO.CEP_ESTADO CEP_ESTADO ON CEP_ESTADO.ID =
+   CEP_LOCALIDADE.ID_CEP_ESTADO 
+  
+  
+  LEFT JOIN EL_TRIBUTARIO.TRB_CONTRIBUINTE_CADASTRO CADCONTR ON
+  CADCONTR.ID = TRB_DOCS_EMITIDOS.ID_CONTRIBUINTE_CADASTRO
+  
+  LEFT JOIN EL_TRIBUTARIO.TRB_CONTRIBUINTE_TIPO TPC ON
+  TPC.ID = CADCONTR.ID_CONTRIBUINTE_TIPO 
+  
+  LEFT JOIN EL_TRIBUTARIO.VW_CONTRIBUINTE_ENDERECO END_CAD ON
+  END_CAD.ID_CADASTRO_CONTRIBUINTE = CADCONTR.ID
+  
+  LEFT JOIN EL_ACESSO.GG_PESSOA_FIS_NAC NAC_CAD ON
+  NAC_CAD.ID = END_CAD.ID_PESSOA
+  
+TRB_DOCS_EMITIDOS.ID = TRB_DOCS_EMITIDOS.ID  AND GG_PESSOA.ID = GG_PESSOA.ID -->
+</div>
+
+</body></html>

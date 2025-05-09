@@ -1,0 +1,587 @@
+.consulta-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1, h2 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  text-align: center;
+}
+
+h2 {
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Estatísticas */
+.stats-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-box {
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  padding: 1rem;
+  flex: 1;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  border-top: 4px solid #ddd;
+}
+
+.stat-box.pending {
+  border-color: #ffc107;
+}
+
+.stat-box.processing {
+  border-color: #17a2b8;
+}
+
+.stat-box.success {
+  border-color: #28a745;
+}
+
+.stat-box.error {
+  border-color: #dc3545;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Filtros */
+.filter-container {
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.filter-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-group.full-width {
+  flex-basis: 100%;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.filter-group input,
+.filter-group select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #1a73e8;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1557b0;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Lista de CNPJs */
+.cnpj-list {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.cnpj-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.cnpj-table th,
+.cnpj-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.cnpj-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.cnpj-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.row-erro {
+  background-color: #fff5f5;
+}
+
+.row-concluido {
+  background-color: #f6fff9;
+}
+
+.row-processando {
+  background-color: #f0f9ff;
+}
+
+.row-pendente {
+  background-color: #fffcf4;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.status-badge.success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-badge.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.status-badge.processing {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+/* Spinner */
+.spinning {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Messages */
+.message {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.message-icon {
+  font-size: 1.25rem;
+}
+
+/* Loading and empty states */
+.loading, .empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #e9ecef;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+/* Cabeçalho do filtro com checkbox de atualização automática */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.auto-refresh {
+  display: flex;
+  align-items: center;
+}
+
+.auto-refresh label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.auto-refresh input[type="checkbox"] {
+  margin: 0;
+}
+
+/* Indicador de atualização automática */
+.auto-refresh-indicator {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background-color: rgba(26, 115, 232, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Cabeçalho da lista com botão de atualização */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.refresh-btn {
+  background-color: #e9ecef;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background-color: #dee2e6;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Estilos para o resumo do documento */
+.resultado-resumo {
+  font-size: 0.8rem;
+  color: #333;
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  line-height: 1.2;
+  max-height: 3.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #28a745;
+}
+
+.resultado-erro {
+  font-size: 0.8rem;
+  color: #721c24;
+  margin-top: 0.5rem;
+  white-space: pre-line;
+  line-height: 1.2;
+  max-height: 3.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #dc3545;
+}
+
+/* Botão de sucesso para abrir PDF */
+.btn-success {
+  background-color: #28a745;
+  color: white;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+/* Ajuste na largura da célula de status para acomodar o resumo */
+.cnpj-table td:nth-child(4) {
+  max-width: 300px;
+  min-width: 200px;
+}
+
+/* Tooltip para mostrar mais detalhes ao passar o mouse */
+.resultado-resumo:hover,
+.resultado-erro:hover {
+  position: relative;
+}
+
+.resultado-resumo:hover::after,
+.resultado-erro:hover::after {
+  content: "Clique no botão para ver o documento completo";
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Estilos para o dropdown de ações */
+.action-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1000;
+  min-width: 200px;
+  padding: 0.5rem 0;
+  margin: 0.125rem 0 0;
+  font-size: 0.875rem;
+  color: #212529;
+  text-align: left;
+  list-style: none;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 0.25rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  clear: both;
+  font-weight: 400;
+  color: #212529;
+  text-align: inherit;
+  white-space: nowrap;
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+  color: #16181b;
+  text-decoration: none;
+  background-color: #f8f9fa;
+}
+
+.btn .spinning + svg {
+  margin-left: 0.25rem;
+}
+
+/* Configurações para o dropdown de reprocessamento em lote */
+.batch-reprocess {
+  position: relative;
+}
+
+.batch-options {
+  width: 320px;
+  padding: 0;
+}
+
+.dropdown-header {
+  display: block;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0;
+  font-size: 0.875rem;
+  color: #6c757d;
+  white-space: nowrap;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dropdown-config {
+  padding: 1rem;
+}
+
+.config-group {
+  margin-bottom: 0.75rem;
+}
+
+.config-group label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.config-group input {
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+}
+
+.dropdown-actions {
+  border-top: 1px solid #e9ecef;
+  padding-top: 0.5rem;
+} 
