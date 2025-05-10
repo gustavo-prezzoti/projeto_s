@@ -135,17 +135,17 @@ h2 {
   color: white;
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover {
   background-color: #1557b0;
 }
 
 .btn-secondary {
-  background-color: #6c757d;
-  color: white;
+  background-color: #f1f3f4;
+  color: #5f6368;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background-color: #5a6268;
+.btn-secondary:hover {
+  background-color: #e8eaed;
 }
 
 .btn-danger {
@@ -153,13 +153,46 @@ h2 {
   color: white;
 }
 
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover {
   background-color: #c82333;
 }
 
 .btn:disabled {
-  opacity: 0.65;
+  opacity: 0.7;
   cursor: not-allowed;
+}
+
+.btn-apply-filter {
+  background-color: #1a73e8;
+  color: white;
+  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(26, 115, 232, 0.2);
+}
+
+.btn-apply-filter:hover {
+  background-color: #1557b0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(26, 115, 232, 0.25);
+}
+
+.btn-apply-filter:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(26, 115, 232, 0.2);
+}
+
+.btn-apply-filter:disabled {
+  background-color: #80a7db;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Lista de CNPJs */
@@ -168,12 +201,14 @@ h2 {
   padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: opacity 0.3s ease;
 }
 
 .cnpj-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
 }
 
 .cnpj-table th,
@@ -300,6 +335,30 @@ h2 {
   font-style: italic;
 }
 
+.empty-state {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+  padding: 2.5rem 1.5rem;
+  font-style: normal;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.empty-state small {
+  display: block;
+  margin-top: 0.75rem;
+  color: #868e96;
+  font-size: 0.8rem;
+}
+
 /* Pagination */
 .pagination {
   display: flex;
@@ -307,6 +366,9 @@ h2 {
   align-items: center;
   gap: 1rem;
   margin-top: 1.5rem;
+  padding: 1rem 0;
+  position: relative;
+  z-index: 10;
 }
 
 .pagination-btn {
@@ -316,10 +378,14 @@ h2 {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-width: 100px;
+  text-align: center;
+  font-weight: 500;
 }
 
 .pagination-btn:hover:not(:disabled) {
   background-color: #e9ecef;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .pagination-btn:disabled {
@@ -584,4 +650,77 @@ h2 {
 .dropdown-actions {
   border-top: 1px solid #e9ecef;
   padding-top: 0.5rem;
+}
+
+/* Batch selection styles */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.batch-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selected-count {
+  color: #1a73e8;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.batch-delete-btn {
+  background-color: #dc3545;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.batch-delete-btn:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+.checkbox-column {
+  width: 40px;
+  text-align: center !important;
+}
+
+.row-selected {
+  background-color: rgba(26, 115, 232, 0.05) !important;
+}
+
+.row-selected:hover {
+  background-color: rgba(26, 115, 232, 0.1) !important;
+}
+
+/* Button styles */
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.btn-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Custom checkbox styles specific to the table */
+.cnpj-table .custom-checkbox-container {
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem;
 } 

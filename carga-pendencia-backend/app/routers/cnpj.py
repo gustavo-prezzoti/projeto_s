@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends, Path, status, Body
 from typing import Optional, List, Dict, Any
 import os
 import shutil
@@ -13,8 +13,11 @@ import re
 from app.services.excel_service import ExcelService
 from app.services.cnpj_service import CNPJService
 from app.schemas.responses import CNPJProcessingResponse, CNPJResponse, ExcelValidationResponse, CNPJValidationItem
-from app.services.queue_service import send_to_queue_and_db, MYSQL_HOST, check_cnpj_exists
+from app.services.queue_service import send_to_queue_and_db, MYSQL_HOST, check_cnpj_exists, get_all_cnpjs, delete_from_queue_by_id
 from app.models.cnpj import CNPJ
+from app.schemas.requests import GetCNPJRequest, BatchDeleteRequest
+from app.schemas.responses import ListCNPJResponse
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/cnpj", tags=["CNPJ Processing"])
 
@@ -178,13 +181,15 @@ async def validate_cnpj_from_excel(
 
 @router.post("/process-selected", response_model=CNPJProcessingResponse)
 async def process_selected_cnpjs(
-    cnpjs: List[str]
+    cnpjs: List[str],
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Process a list of selected CNPJs from the validation result
     
     Args:
         cnpjs: List of CNPJ strings to process
+        current_user: Current authenticated user
         
     Returns:
         Result of processing the selected CNPJs
@@ -197,6 +202,10 @@ async def process_selected_cnpjs(
             )
         
         print(f"Received {len(cnpjs)} CNPJs for processing: {cnpjs}")
+        
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        print(f"User ID do token: {user_id}")
         
         # Fetch company names from database if available, otherwise use a placeholder
         processed_cnpjs = []
@@ -232,9 +241,9 @@ async def process_selected_cnpjs(
                 municipio=record.get("municipio", "")
             )
             
-            # Send to queue and DB
-            print(f"Sending CNPJ to queue and DB: {cleaned_cnpj}")
-            send_to_queue_and_db(cnpj_obj)
+            # Send to queue and DB with user_id
+            print(f"Sending CNPJ to queue and DB with user_id {user_id}: {cleaned_cnpj}")
+            send_to_queue_and_db(cnpj_obj, user_id=user_id)
             processed_cnpjs.append(cnpj_obj)
         
         print(f"Processed {len(processed_cnpjs)} CNPJs")
@@ -257,7 +266,8 @@ async def process_selected_cnpjs(
 
 @router.post("/process", response_model=CNPJProcessingResponse)
 async def process_cnpj_from_excel(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Upload an Excel file with CNPJ data, process it, and interact with the website.
@@ -265,6 +275,7 @@ async def process_cnpj_from_excel(
     
     Args:
         file: The Excel file containing CNPJ data
+        current_user: Current authenticated user
         
     Returns:
         Result of CNPJ processing and web interaction
@@ -315,12 +326,26 @@ async def process_cnpj_from_excel(
         )
         cursor = conn.cursor(dictionary=True)
         
-        # Excluir registros existentes para cada CNPJ
+        # Extrair user_id do token
+        user_id = current_user.get("user_id")
+        print(f"User ID from token: {user_id}")
+        
+        if not user_id:
+            print("WARNING: No user_id found in token, CNPJs will not be associated with a user")
+        
+        # Excluir registros existentes para cada CNPJ (apenas os do usuário atual)
         for cnpj in cnpjs_to_process:
-            cursor.execute(
-                "SELECT id FROM fila_cnpj WHERE cnpj = %s",
-                (cnpj.cnpj,)
-            )
+            if user_id:
+                cursor.execute(
+                    "SELECT id FROM fila_cnpj WHERE cnpj = %s AND (user_id = %s OR user_id IS NULL)",
+                    (cnpj.cnpj, user_id)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id FROM fila_cnpj WHERE cnpj = %s",
+                    (cnpj.cnpj,)
+                )
+                
             existing_records = cursor.fetchall()
             
             if existing_records:
@@ -338,10 +363,10 @@ async def process_cnpj_from_excel(
         conn.close()
         print(f"Total records deleted: {deleted_records}")
                 
-        # Enfileira cada CNPJ e registra no banco
+        # Enfileira cada CNPJ e registra no banco (com user_id)
         for cnpj in cnpjs_to_process:
-            print(f"Sending CNPJ to queue: {cnpj.cnpj}")
-            send_to_queue_and_db(cnpj)
+            print(f"Sending CNPJ to queue with user_id {user_id}: {cnpj.cnpj}")
+            send_to_queue_and_db(cnpj, user_id=user_id)
             
         print(f"Total CNPJs processed: {len(cnpjs_to_process)}, Records deleted: {deleted_records}")
         return CNPJProcessingResponse(
@@ -390,7 +415,9 @@ async def process_cnpj_from_excel(
                 t.start()
 
 @router.post("/reprocess-pending", response_model=CNPJProcessingResponse)
-async def reprocess_pending_cnpjs():
+async def reprocess_pending_cnpjs(
+    current_user: dict = Depends(get_current_user)
+):
     """
     Reprocessar todos os CNPJs com status 'pendente' ou 'erro' no banco de dados
     
@@ -398,6 +425,9 @@ async def reprocess_pending_cnpjs():
         Resultado da operação com o número total de CNPJs reenfileirados
     """
     try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
         # Conectar ao banco de dados
         conn = mysql.connector.connect(
             host=MYSQL_HOST,
@@ -407,10 +437,17 @@ async def reprocess_pending_cnpjs():
         )
         cursor = conn.cursor(dictionary=True)
 
-        # Buscar todos os CNPJs pendentes ou com erro
-        cursor.execute(
-            "SELECT * FROM fila_cnpj WHERE status IN ('pendente', 'erro')"
-        )
+        # Buscar todos os CNPJs pendentes ou com erro do usuário atual
+        if user_id:
+            cursor.execute(
+                "SELECT * FROM fila_cnpj WHERE status IN ('pendente', 'erro') AND user_id = %s",
+                (user_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM fila_cnpj WHERE status IN ('pendente', 'erro')"
+            )
+            
         pending_rows = cursor.fetchall()
         
         if not pending_rows:
@@ -434,8 +471,8 @@ async def reprocess_pending_cnpjs():
                 ("pendente", row['id'])
             )
             
-            # Reenviar para a fila
-            send_to_queue_and_db(cnpj_obj)
+            # Reenviar para a fila - preservar o user_id existente
+            send_to_queue_and_db(cnpj_obj, user_id=row.get('user_id') or user_id)
             reprocessed_count += 1
         
         conn.commit()
@@ -450,111 +487,11 @@ async def reprocess_pending_cnpjs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJs pendentes: {str(e)}")
 
-@router.get("/consultar", response_model=Dict[str, Any])
-async def consultar_cnpjs(
-    status: Optional[str] = Query(None, description="Filtrar por status (pendente, processando, concluido, erro)"),
-    data_inicio: Optional[str] = Query(None, description="Data inicial (formato YYYY-MM-DD)"),
-    data_fim: Optional[str] = Query(None, description="Data final (formato YYYY-MM-DD)"),
-    texto_erro: Optional[str] = Query(None, description="Filtrar por texto contido no resultado de erro")
-):
-    """
-    Consultar CNPJs no banco de dados com filtros por status e data
-    
-    Args:
-        status: Filtrar por status (pendente, processando, concluido, erro)
-        data_inicio: Data inicial formato YYYY-MM-DD
-        data_fim: Data final formato YYYY-MM-DD
-        texto_erro: Filtrar por texto contido no resultado de erro
-        
-    Returns:
-        Lista de CNPJs que correspondem aos filtros
-    """
-    try:
-        # Conectar ao banco de dados
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user="root",
-            password="root",
-            database="relatorio_pendencia"
-        )
-        cursor = conn.cursor(dictionary=True)
-        
-        # Construir consulta SQL com filtros
-        query = "SELECT * FROM fila_cnpj WHERE 1=1"
-        params = []
-        
-        if status:
-            query += " AND status = %s"
-            params.append(status)
-        
-        if data_inicio:
-            try:
-                # Validar formato da data
-                datetime.strptime(data_inicio, "%Y-%m-%d")
-                query += " AND DATE(data_criacao) >= %s"
-                params.append(data_inicio)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Formato de data_inicio inválido. Use YYYY-MM-DD"
-                )
-        
-        if data_fim:
-            try:
-                # Validar formato da data
-                datetime.strptime(data_fim, "%Y-%m-%d")
-                query += " AND DATE(data_criacao) <= %s"
-                params.append(data_fim)
-            except ValueError:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Formato de data_fim inválido. Use YYYY-MM-DD"
-                )
-        
-        if texto_erro:
-            query += " AND resultado LIKE %s"
-            params.append(f"%{texto_erro}%")
-        
-        # Adicionar ordenação por data de criação (mais recentes primeiro)
-        query += " ORDER BY data_criacao DESC"
-        
-        # Executar consulta
-        cursor.execute(query, params)
-        cnpjs = cursor.fetchall()
-        
-        # Transformar as datas para string para serialização JSON
-        for cnpj in cnpjs:
-            if 'data_criacao' in cnpj and cnpj['data_criacao']:
-                cnpj['data_criacao'] = cnpj['data_criacao'].isoformat()
-            if 'data_atualizacao' in cnpj and cnpj['data_atualizacao']:
-                cnpj['data_atualizacao'] = cnpj['data_atualizacao'].isoformat()
-        
-        # Calcular estatísticas
-        total = len(cnpjs)
-        pendentes = sum(1 for cnpj in cnpjs if cnpj['status'] == 'pendente')
-        processando = sum(1 for cnpj in cnpjs if cnpj['status'] == 'processando')
-        concluidos = sum(1 for cnpj in cnpjs if cnpj['status'] == 'concluido')
-        erros = sum(1 for cnpj in cnpjs if cnpj['status'] == 'erro')
-        
-        cursor.close()
-        conn.close()
-        
-        return {
-            "total": total,
-            "pendentes": pendentes,
-            "processando": processando,
-            "concluidos": concluidos,
-            "erros": erros,
-            "cnpjs": cnpjs
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao consultar CNPJs: {str(e)}")
-
 @router.post("/reprocessar-erros", response_model=CNPJProcessingResponse)
 async def reprocessar_erros_excel(
     texto_erro: Optional[str] = Query(None, description="Filtrar por texto específico de erro (ex: 'PDF não encontrado')"),
-    dias: Optional[int] = Query(7, description="Processar erros dos últimos X dias")
+    dias: Optional[int] = Query(7, description="Processar erros dos últimos X dias"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Reprocessar CNPJs com erro (especialmente aqueles com erro de PDF não encontrado)
@@ -562,11 +499,15 @@ async def reprocessar_erros_excel(
     Args:
         texto_erro: Filtrar por texto específico no erro
         dias: Processar erros dos últimos X dias (padrão: 7)
+        current_user: Usuário autenticado atual
         
     Returns:
         Resultado da operação com o número total de CNPJs reenfileirados
     """
     try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
         # Conectar ao banco de dados
         conn = mysql.connector.connect(
             host=MYSQL_HOST,
@@ -579,6 +520,11 @@ async def reprocessar_erros_excel(
         # Construir consulta SQL com filtros
         query = "SELECT * FROM fila_cnpj WHERE status = 'erro'"
         params = []
+        
+        # Filtrar por user_id se disponível
+        if user_id:
+            query += " AND user_id = %s"
+            params.append(user_id)
         
         # Filtrar por texto de erro específico
         if texto_erro:
@@ -654,18 +600,23 @@ async def reprocessar_erros_excel(
 
 @router.api_route("/reprocessar-erros-recriando", methods=["GET", "POST"], response_model=CNPJProcessingResponse)
 async def reprocessar_erros_recriando(
-    limite: int = Query(100, description="Número máximo de CNPJs com erro a reprocessar")
+    limite: int = Query(100, description="Número máximo de CNPJs com erro a reprocessar"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Reprocessar todos os CNPJs com status de erro, excluindo-os do banco antes de reprocessar
     
     Args:
         limite: Número máximo de CNPJs a reprocessar
+        current_user: Usuário autenticado atual
         
     Returns:
         Resultado da operação
     """
     try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
         # Conectar ao banco de dados
         conn = mysql.connector.connect(
             host=MYSQL_HOST,
@@ -678,6 +629,11 @@ async def reprocessar_erros_recriando(
         # Construir consulta SQL com filtros
         query = "SELECT * FROM fila_cnpj WHERE status = 'erro'"
         params = []
+        
+        # Filtrar por user_id se disponível
+        if user_id:
+            query += " AND user_id = %s"
+            params.append(user_id)
         
         # Limitar número de registros
         if limite:
@@ -717,8 +673,11 @@ async def reprocessar_erros_recriando(
                     municipio=municipio
                 )
                 
+                # Preservar o user_id original ou usar o atual
+                row_user_id = row.get('user_id') or user_id
+                
                 # Enviar para a fila e criar novo registro
-                new_id = send_to_queue_and_db(cnpj_obj)
+                new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
                 
                 cnpjs_processados.append({
                     "nome": razao_social,
@@ -763,7 +722,8 @@ async def reprocessar_erros_recriando(
 @router.api_route("/reprocessar-cnpj-individual", methods=["GET", "POST"], response_model=CNPJProcessingResponse)
 async def reprocessar_cnpj_individual(
     cnpj_id: int = Query(..., description="ID do CNPJ na tabela fila_cnpj"),
-    deletar_registro: bool = Query(True, description="Se True, exclui o registro do banco antes de reprocessar")
+    deletar_registro: bool = Query(True, description="Se True, exclui o registro do banco antes de reprocessar"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Reprocessar um CNPJ específico, opcionalmente excluindo o registro anterior
@@ -771,11 +731,15 @@ async def reprocessar_cnpj_individual(
     Args:
         cnpj_id: ID do CNPJ na tabela fila_cnpj
         deletar_registro: Se True, exclui o registro do banco antes de reprocessar
+        current_user: Usuário autenticado atual
         
     Returns:
         Resultado da operação
     """
     try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
         # Conectar ao banco de dados
         conn = mysql.connector.connect(
             host=MYSQL_HOST,
@@ -785,17 +749,24 @@ async def reprocessar_cnpj_individual(
         )
         cursor = conn.cursor(dictionary=True)
 
-        # Buscar o CNPJ pelo ID
-        cursor.execute(
-            "SELECT * FROM fila_cnpj WHERE id = %s",
-            (cnpj_id,)
-        )
+        # Buscar o CNPJ pelo ID (e verificar se pertence ao usuário atual)
+        if user_id:
+            cursor.execute(
+                "SELECT * FROM fila_cnpj WHERE id = %s AND (user_id = %s OR user_id IS NULL)",
+                (cnpj_id, user_id)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM fila_cnpj WHERE id = %s",
+                (cnpj_id,)
+            )
+            
         cnpj_row = cursor.fetchone()
         
         if not cnpj_row:
             raise HTTPException(
                 status_code=404,
-                detail=f"CNPJ com ID {cnpj_id} não encontrado"
+                detail=f"CNPJ com ID {cnpj_id} não encontrado ou você não tem permissão para reprocessá-lo"
             )
         
         # Criar objeto CNPJ
@@ -804,6 +775,9 @@ async def reprocessar_cnpj_individual(
             razao_social=cnpj_row.get('razao_social', '') or cnpj_row.get('nome', 'Empresa'),
             municipio=cnpj_row.get('municipio', '')
         )
+        
+        # Preservar o user_id original ou usar o atual
+        row_user_id = cnpj_row.get('user_id') or user_id
         
         # Se solicitado, excluir o registro existente
         if deletar_registro:
@@ -814,7 +788,7 @@ async def reprocessar_cnpj_individual(
             conn.commit()
             
         # Enviar para a fila e criar novo registro
-        new_id = send_to_queue_and_db(cnpj_obj)
+        new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
         
         cursor.close()
         conn.close()
@@ -844,4 +818,193 @@ async def reprocessar_cnpj_individual(
         # Re-raise HTTP exceptions without wrapping
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJ individual: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJ individual: {str(e)}")
+
+@router.get("/list", response_model=List[ListCNPJResponse])
+async def list_cnpjs(current_user: dict = Depends(get_current_user)):
+    """
+    Lista todos os CNPJs do usuário atual
+    """
+    try:
+        # Obter todos os CNPJs do usuário atual
+        cnpjs = get_all_cnpjs(user_id=current_user.get("user_id"))
+        return cnpjs
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao listar CNPJs: {str(e)}"
+        )
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Upload de arquivo Excel com CNPJs para processamento
+    """
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(
+            status_code=400,
+            detail="Arquivo deve ser .xlsx ou .xls"
+        )
+    
+    try:
+        # Processar o arquivo Excel
+        excel_data = ExcelService.process_excel_file(await file.read())
+        
+        # Extrair CNPJs do Excel
+        cnpjs = CNPJService.extract_cnpjs_from_excel_data(excel_data)
+        
+        if not cnpjs:
+            raise HTTPException(
+                status_code=400,
+                detail="Nenhum CNPJ válido encontrado no arquivo"
+            )
+        
+        # Verificar duplicatas no Excel
+        duplicates = CNPJService.find_duplicates_in_excel(cnpjs)
+        
+        # Remover duplicatas
+        unique_cnpjs = CNPJService.get_unique_cnpjs(cnpjs)
+        
+        # Verificar CNPJs que já existem no banco
+        new_cnpjs, existing_cnpjs = CNPJService.validate_cnpjs_against_db(unique_cnpjs)
+        
+        # Enviar novos CNPJs para a fila e banco
+        for cnpj in new_cnpjs:
+            send_to_queue_and_db(cnpj, user_id=current_user.get("user_id"))
+        
+        return {
+            "message": "Arquivo processado com sucesso",
+            "total_cnpjs": len(cnpjs),
+            "unique_cnpjs": len(unique_cnpjs),
+            "new_cnpjs": len(new_cnpjs),
+            "existing_cnpjs": len(existing_cnpjs),
+            "duplicate_cnpjs": len(duplicates),
+            "duplicates": [{"cnpj": k, "count": len(v)} for k, v in duplicates.items()]
+        }
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no processamento: {str(e)}"
+        )
+
+@router.post("/add")
+async def add_single_cnpj(
+    cnpj_data: GetCNPJRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Adiciona um único CNPJ para processamento
+    """
+    try:
+        # Verifica se já existe no banco
+        exists, record = check_cnpj_exists(cnpj_data.cnpj)
+        if exists:
+            return {
+                "message": "CNPJ já existe na fila",
+                "cnpj": cnpj_data.cnpj,
+                "record": record
+            }
+        
+        # Cria objeto CNPJ
+        cnpj_obj = CNPJ(
+            cnpj=cnpj_data.cnpj,
+            razao_social=cnpj_data.razao_social or "",
+            municipio=cnpj_data.municipio or ""
+        )
+        
+        # Envia para fila e banco
+        fila_id = send_to_queue_and_db(cnpj_obj, user_id=current_user.get("user_id"))
+        
+        return {
+            "message": "CNPJ adicionado com sucesso",
+            "cnpj": cnpj_data.cnpj,
+            "fila_id": fila_id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao adicionar CNPJ: {str(e)}"
+        )
+
+@router.delete("/delete-batch", status_code=status.HTTP_200_OK)
+async def batch_delete_cnpjs(
+    request: BatchDeleteRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Remove múltiplos CNPJs da fila pelos IDs
+    
+    Args:
+        request: Requisição contendo lista de IDs a serem excluídos
+        current_user: Usuário autenticado atual
+        
+    Returns:
+        Resultado da operação com detalhes de quais IDs foram excluídos e quais falharam
+    """
+    try:
+        user_id = current_user.get("user_id")
+        
+        if not request.fila_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nenhum ID fornecido para exclusão"
+            )
+        
+        results = {
+            "total": len(request.fila_ids),
+            "deleted": 0,
+            "failed": 0,
+            "failed_ids": []
+        }
+        
+        for fila_id in request.fila_ids:
+            deleted = delete_from_queue_by_id(fila_id, user_id=user_id)
+            if deleted:
+                results["deleted"] += 1
+            else:
+                results["failed"] += 1
+                results["failed_ids"].append(fila_id)
+        
+        if results["failed"] > 0 and results["deleted"] == 0:
+            # Se todos os registros falharem, retornar erro
+            return {
+                "status": "error",
+                "message": "Nenhum registro pôde ser excluído. Verifique se os IDs são válidos e pertencem ao seu usuário.",
+                "details": results
+            }
+        
+        return {
+            "status": "success",
+            "message": f"Excluídos {results['deleted']} de {results['total']} registros com sucesso.",
+            "details": results
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao excluir registros em lote: {str(e)}"
+        )
+
+@router.delete("/{fila_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_cnpj(
+    fila_id: int = Path(..., description="ID do registro na fila"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Remove um CNPJ da fila pelo ID
+    """
+    deleted = delete_from_queue_by_id(fila_id, user_id=current_user.get("user_id"))
+    
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="CNPJ não encontrado ou você não tem permissão para excluí-lo"
+        )
+    
+    return None  # 204 No Content 

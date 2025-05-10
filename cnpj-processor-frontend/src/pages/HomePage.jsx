@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUpload, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiUpload, FiCheckCircle, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import { uploadExcel } from '../services/api';
 import './HomePage.css';
 
@@ -140,7 +140,14 @@ const HomePage = () => {
               onClick={handleUpload}
               disabled={loading}
             >
-              {loading ? 'Processando...' : 'Processar arquivo'}
+              {loading ? (
+                <>
+                  <FiRefreshCw className="spinning" style={{ marginRight: '8px' }} /> 
+                  Processando...
+                </>
+              ) : (
+                'Processar arquivo'
+              )}
             </button>
           </div>
         )}

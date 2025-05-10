@@ -14,6 +14,8 @@ import psutil
 from app.routers import cnpj
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from app.routers import excel
+from app.routers import auth  # Novo roteador de autenticação
 
 # Configure logging
 logging.basicConfig(
@@ -65,6 +67,8 @@ app.mount("/document", StaticFiles(directory="document"), name="document")
 
 # Include routers
 app.include_router(cnpj.router)
+app.include_router(excel.router)
+app.include_router(auth.router)  # Incluir roteador de autenticação
 
 # Cleanup function to kill any hanging chrome processes
 def cleanup_chrome_processes():

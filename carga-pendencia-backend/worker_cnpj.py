@@ -32,23 +32,23 @@ def calculate_wait_time(batchsize):
     Returns:
         Dicionário com os diferentes tempos de espera
     """
-    # Valores base
+    # Valores base aumentados para lidar com conexões lentas
     if batchsize <= 5:
-        base_wait = 20
+        base_wait = 45  # Aumentado de 20 para 45
     elif batchsize <= 20:
-        base_wait = 35
+        base_wait = 60  # Aumentado de 35 para 60
     elif batchsize <= 50:
-        base_wait = 40
+        base_wait = 75  # Aumentado de 40 para 75
     else:
-        base_wait = 90
+        base_wait = 120  # Aumentado de 90 para 120
     
     # Calcula diferentes tempos baseados no tempo base
     return {
-        "page_load": base_wait,                    # Tempo para carregar página
-        "after_click": base_wait * 0.5,            # Tempo após cliques
-        "form_fill": max(5, base_wait * 0.3),      # Tempo para preenchimento de formulário
-        "element_wait": max(10, base_wait * 0.7),  # Timeout para esperar elementos
-        "between_tasks": max(3, base_wait * 0.2)   # Tempo entre tarefas do batch
+        "page_load": base_wait,                      # Tempo para carregar página
+        "after_click": max(20, base_wait * 0.5),     # Tempo após cliques (mínimo 20s)
+        "form_fill": max(10, base_wait * 0.3),       # Tempo para preenchimento de formulário (mínimo 10s)
+        "element_wait": max(30, base_wait * 0.7),    # Timeout para esperar elementos (mínimo 30s)
+        "between_tasks": max(5, base_wait * 0.2)     # Tempo entre tarefas do batch (mínimo 5s)
     }
 
 # Verificar se estamos em ambiente Docker ou local
@@ -255,22 +255,57 @@ def processa_cnpj(fila_id):
                 pass
 
 def callback(ch, method, properties, body):
-    fila_id = int(body.decode())
+    """Callback para processar mensagens da fila"""
+    fila_id = body.decode('utf-8').strip()
+    print(f"Recebido ID {fila_id} da fila")
+    
+    # Verificar se este ID está na lista de ignorados
+    connection = None
+    channel = None
+    try:
+        # Conectar ao RabbitMQ para verificar a fila de ignorados
+        connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))
+        channel = connection.channel()
+        # Declarar a fila de ignorados se não existir
+        channel.queue_declare(queue='fila_cnpj_ignorados', durable=True)
+        
+        # Tentar obter uma mensagem da fila de ignorados sem consumir
+        method_frame, header_frame, body_ignorado = channel.basic_get(
+            queue='fila_cnpj_ignorados',
+            auto_ack=False
+        )
+        
+        # Se existe alguma mensagem e é o ID atual
+        if method_frame and body_ignorado and body_ignorado.decode('utf-8').strip() == fila_id:
+            print(f"ID {fila_id} está na lista de ignorados. Pulando processamento.")
+            # Confirmar consumo desta mensagem da fila de ignorados
+            channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+            # Confirmar consumo da mensagem original
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return
+    except Exception as e:
+        print(f"Erro ao verificar fila de ignorados: {str(e)}")
+    finally:
+        if connection and connection.is_open:
+            connection.close()
+
     def task():
+        """Tarefa para processar o ID"""
         try:
             processa_cnpj(fila_id)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            print(f"Processamento de {fila_id} concluído e confirmado!")
         except Exception as e:
-            print(f"[ERRO CRÍTICO] Falha na execução da tarefa para fila_id={fila_id}: {e}")
+            print(f"Erro no processamento de {fila_id}: {str(e)}")
             print(traceback.format_exc())
-        finally:
-            # Sempre confirmar a mensagem para evitar deadlocks na fila
+            # Se ocorrer erro, tentar confirmar recebimento mesmo assim para evitar loop
             try:
-                ch.connection.add_callback_threadsafe(lambda: ch.basic_ack(delivery_tag=method.delivery_tag))
-            except Exception as ack_err:
-                print(f"[ERRO] Não foi possível confirmar mensagem: {ack_err}")
-    
-    # Adicionar pequeno delay aleatório para evitar sobrecarga quando múltiplos workers recebem mensagens ao mesmo tempo
-    time.sleep(random.uniform(0.1, 1.0))
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                print(f"Mensagem {fila_id} confirmada após erro!")
+            except:
+                print(f"Não foi possível confirmar a mensagem {fila_id} após erro.")
+
+    # Submeter à thread pool para processamento paralelo
     executor.submit(task)
 
 # Conectar com retentativas e backoff exponencial
@@ -299,44 +334,85 @@ def connect_to_rabbitmq():
             print(f"Tentando novamente em {sleep_time} segundos...")
             time.sleep(sleep_time)
 
-def modo_batch(batchsize=50, workers=3):
+def modo_batch(batchsize=30, workers=2):
+    """
+    Processa CNPJs em lotes (modo batch) sem usar RabbitMQ
+    
+    Args:
+        batchsize: Tamanho máximo de cada lote (padrão: 30)
+        workers: Número de workers paralelos (padrão: 2)
+    """
     print("[LOG] Entrou no modo_batch")
     global executor, WAIT_TIMES
+    
+    # Limitar workers para 2 para evitar sobrecarga
+    workers = min(workers, 2)
+    
+    # Ajustar batchsize se excessivamente grande
+    batchsize = min(batchsize, 50)
+    
     executor = ThreadPoolExecutor(max_workers=workers)
     WAIT_TIMES = calculate_wait_time(batchsize)
     print(f"[LOG] Tempos de espera configurados para batch size {batchsize}: {WAIT_TIMES}")
+    print(f"[LOG] Usando {workers} workers paralelos")
+    
+    # Controle da carga de trabalho
+    ciclos_sem_tarefas = 0
+    max_ciclos_sem_tarefas = 6  # Após 6 ciclos sem tarefas, aumenta a pausa
+    
     while True:
         print("[LOG] Loop principal do modo_batch rodando...")
         try:
             tarefas_ids = verificar_tarefas_pendentes_lote(batchsize)
             print(f"[LOG] IDs retornados para processamento: {tarefas_ids}")
+            
             if not tarefas_ids:
-                print("[LOG] Sem tarefas pendentes. Aguardando 10 segundos...")
-                time.sleep(10)
+                ciclos_sem_tarefas += 1
+                pausa = WAIT_TIMES["page_load"] if ciclos_sem_tarefas <= max_ciclos_sem_tarefas else 60
+                print(f"[LOG] Sem tarefas pendentes. Aguardando {pausa} segundos... (ciclo {ciclos_sem_tarefas})")
+                time.sleep(pausa)
                 continue
+            
+            # Resetar contador quando encontrar tarefas
+            ciclos_sem_tarefas = 0
+            
+            # Iniciar com uma pausa para garantir que processos antigos do Chrome estejam encerrados
+            pausa_inicial = 15
+            print(f"[LOG] Pausa inicial de {pausa_inicial} segundos antes de iniciar novo lote...")
+            time.sleep(pausa_inicial)
+            
             futures = []
-            for fila_id in tarefas_ids:
-                print(f"[LOG] Submetendo tarefa {fila_id} para processamento.")
-                time.sleep(WAIT_TIMES["between_tasks"])
+            for i, fila_id in enumerate(tarefas_ids):
+                print(f"[LOG] Submetendo tarefa {fila_id} para processamento ({i+1}/{len(tarefas_ids)}).")
+                # Pausa maior entre submissões
+                pausa_entre_submissoes = WAIT_TIMES["between_tasks"] * 3
+                print(f"[LOG] Aguardando {pausa_entre_submissoes} segundos antes de submeter próxima tarefa...")
+                time.sleep(pausa_entre_submissoes)
                 futures.append(executor.submit(processa_cnpj, fila_id))
+            
+            # Aguardar todas as tarefas concluírem
             for future in futures:
                 try:
                     future.result()
                 except Exception as e:
                     print(f"[ERRO] Erro em uma das tarefas do lote: {e}")
+                    print(traceback.format_exc())
+            
             print(f"[LOG] Lote de {len(tarefas_ids)} tarefas concluído.")
+            
             if len(tarefas_ids) < batchsize:
-                print(f"[LOG] Menos de {batchsize} tarefas pendentes. Aguardando {WAIT_TIMES['between_tasks']} segundos antes de verificar novamente...")
-                time.sleep(WAIT_TIMES["between_tasks"])
+                pausa_lote_pequeno = WAIT_TIMES["between_tasks"] * 2
+                print(f"[LOG] Menos de {batchsize} tarefas pendentes. Aguardando {pausa_lote_pequeno} segundos antes de verificar novamente...")
+                time.sleep(pausa_lote_pequeno)
             else:
-                pausa_entre_lotes = WAIT_TIMES["between_tasks"] * 3
+                pausa_entre_lotes = WAIT_TIMES["page_load"]
                 print(f"[LOG] Pausa de {pausa_entre_lotes} segundos entre lotes grandes...")
                 time.sleep(pausa_entre_lotes)
         except Exception as e:
             print(f"[ERRO] Erro no modo batch: {e}")
             print(traceback.format_exc())
             print(f"[LOG] Aguardando {WAIT_TIMES['page_load']} segundos antes de tentar novamente...")
-            time.sleep(WAIT_TIMES["page_load"])
+            time.sleep(WAIT_TIMES['page_load'])
 
 def modo_fila():
     """
@@ -363,9 +439,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Worker para processamento de CNPJs')
     parser.add_argument('--modo', type=str, choices=['fila', 'batch'], default='fila',
                         help='Modo de operação: fila (RabbitMQ) ou batch (verificação em lote)')
-    parser.add_argument('--batchsize', type=int, default=50,
+    parser.add_argument('--batchsize', type=int, default=30,
                         help='Número de tarefas a serem processadas por lote (apenas para modo batch)')
-    parser.add_argument('--workers', type=int, default=3,
+    parser.add_argument('--workers', type=int, default=2,
                         help='Número de workers paralelos (apenas para modo batch)')
     
     args = parser.parse_args()

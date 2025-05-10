@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 class CNPJResponse(BaseModel):
     """Response for a single CNPJ processed"""
@@ -35,4 +36,20 @@ class ExcelValidationResponse(BaseModel):
     new_items: int
     existing_items: int
     duplicate_items: int
-    cnpjs: List[CNPJValidationItem] 
+    cnpjs: List[CNPJValidationItem]
+
+class ListCNPJResponse(BaseModel):
+    """
+    Resposta para listagem de CNPJs na fila
+    """
+    id: int
+    cnpj: str
+    razao_social: Optional[str] = None
+    municipio: Optional[str] = None
+    status: str
+    resultado: Optional[str] = None
+    status_divida: Optional[str] = None
+    pdf_path: Optional[str] = None
+    data_criacao: str
+    data_atualizacao: Optional[str] = None
+    user_id: Optional[int] = None 

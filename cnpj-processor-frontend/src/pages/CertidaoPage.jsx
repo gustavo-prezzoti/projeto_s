@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi';
 import './CertidaoPage.css';
 
 const CertidaoPage = () => {
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [printLoading, setPrintLoading] = useState(false);
   const [brasaoUrl, setBrasaoUrl] = useState('');
   const [title, setTitle] = useState('');
   const [certNumber, setCertNumber] = useState('');
@@ -120,11 +122,15 @@ const CertidaoPage = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    setPrintLoading(true);
+    setTimeout(() => {
+      window.print();
+      setPrintLoading(false);
+    }, 300);
   };
 
   const handleBack = () => {
-    window.history.back();
+    navigate('/consulta');
   };
 
   if (loading) {
@@ -137,8 +143,8 @@ const CertidaoPage = () => {
         <button onClick={handleBack} className="back-button">
           <FiArrowLeft size={20} /> Voltar
         </button>
-        <button onClick={handlePrint} className="print-button">
-          <FiPrinter size={20} /> Imprimir
+        <button onClick={handlePrint} className="print-button" disabled={printLoading}>
+          <FiPrinter size={20} /> {printLoading ? 'Preparando...' : 'Imprimir'}
         </button>
       </div>
       

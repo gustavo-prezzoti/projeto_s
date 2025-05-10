@@ -1,26 +1,48 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import UploadPage from './pages/UploadPage';
 import ConsultaPage from './pages/ConsultaPage';
 import CertidaoPage from './pages/CertidaoPage';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { initializeAuth } from './services/auth';
 import './App.css';
 
-// Wrapper component that conditionally renders the Navbar
+// Wrapper component that always renders the Navbar for authenticated routes
 const AppContent = () => {
   const location = useLocation();
-  const isCertidaoPage = location.pathname.includes('/certidao/');
+  const isLoginPage = location.pathname === '/login';
   
   return (
     <div className="app">
-      {!isCertidaoPage && <Navbar />}
-      <main className="content">
+      {!isLoginPage && <Navbar />}
+      <main className={`content ${isLoginPage ? 'full-height' : ''}`}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/consulta" element={<ConsultaPage />} />
-          <Route path="/certidao/:id" element={<CertidaoPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Protected routes */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/upload" element={
+            <ProtectedRoute>
+              <UploadPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/consulta" element={
+            <ProtectedRoute>
+              <ConsultaPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/certidao/:id" element={
+            <ProtectedRoute>
+              <CertidaoPage />
+            </ProtectedRoute>
+          } />
         </Routes>
       </main>
     </div>
@@ -28,6 +50,11 @@ const AppContent = () => {
 };
 
 function App() {
+  // Initialize authentication on app load
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
   return (
     <Router>
       <AppContent />

@@ -1649,3 +1649,125 @@
 2025-05-09 19:59:56,115 - root - INFO - Chrome process cleanup completed
 2025-05-09 19:59:56,196 - root - INFO - Cleaning up Chrome processes...
 2025-05-09 19:59:58,038 - root - INFO - Chrome process cleanup completed
+2025-05-10 00:28:24,899 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 00:28:25,981 - root - INFO - Chrome process cleanup completed
+2025-05-10 00:30:55,930 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 00:30:56,285 - root - INFO - Chrome process cleanup completed
+2025-05-10 00:32:18,534 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 00:32:19,790 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:00:16,485 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:00:16,875 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:02:34,459 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:02:35,692 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:02:59,569 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:02:59,907 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:03:07,749 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:03:08,732 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:03:38,262 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:03:38,583 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:03:46,513 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:03:47,541 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:03:47,659 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:03:48,009 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:04:05,304 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:04:06,434 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:06:45,048 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:06:45,391 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:06:53,418 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:06:54,685 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:06:58,495 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:06:58,791 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:07:06,785 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:07:07,925 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:07:56,265 - app.services.queue_service - INFO - ID 177 adicionado à fila de ignorados
+2025-05-10 01:07:56,279 - app.services.queue_service - INFO - ID 177 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:15:40,515 - app.services.queue_service - INFO - ID 178 adicionado à fila de ignorados
+2025-05-10 01:15:40,526 - app.services.queue_service - INFO - ID 178 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:15:42,701 - app.services.queue_service - INFO - ID 179 adicionado à fila de ignorados
+2025-05-10 01:15:42,713 - app.services.queue_service - INFO - ID 179 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:15:48,039 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:15:48,503 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:15:56,868 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:15:57,917 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:17:07,590 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:17:07,951 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:17:15,802 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:17:16,855 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:17:16,865 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:17:17,228 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:17:49,939 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:17:51,017 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:18:03,890 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:18:04,218 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:18:12,618 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:18:13,737 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:19:21,335 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:19:21,814 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:19:29,570 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:19:30,755 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:19:53,154 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:19:53,503 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:20:03,425 - root - INFO - Cleaning up Chrome processes...
+2025-05-10 01:20:04,467 - root - INFO - Chrome process cleanup completed
+2025-05-10 01:21:30,271 - app.services.queue_service - INFO - ID 180 adicionado à fila de ignorados
+2025-05-10 01:21:30,282 - app.services.queue_service - INFO - ID 180 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,300 - app.services.queue_service - INFO - ID 181 adicionado à fila de ignorados
+2025-05-10 01:21:30,314 - app.services.queue_service - INFO - ID 181 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,332 - app.services.queue_service - INFO - ID 182 adicionado à fila de ignorados
+2025-05-10 01:21:30,340 - app.services.queue_service - INFO - ID 182 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,358 - app.services.queue_service - INFO - ID 183 adicionado à fila de ignorados
+2025-05-10 01:21:30,367 - app.services.queue_service - INFO - ID 183 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,384 - app.services.queue_service - INFO - ID 184 adicionado à fila de ignorados
+2025-05-10 01:21:30,396 - app.services.queue_service - INFO - ID 184 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,414 - app.services.queue_service - INFO - ID 185 adicionado à fila de ignorados
+2025-05-10 01:21:30,422 - app.services.queue_service - INFO - ID 185 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,440 - app.services.queue_service - INFO - ID 186 adicionado à fila de ignorados
+2025-05-10 01:21:30,451 - app.services.queue_service - INFO - ID 186 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,469 - app.services.queue_service - INFO - ID 187 adicionado à fila de ignorados
+2025-05-10 01:21:30,479 - app.services.queue_service - INFO - ID 187 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,497 - app.services.queue_service - INFO - ID 188 adicionado à fila de ignorados
+2025-05-10 01:21:30,506 - app.services.queue_service - INFO - ID 188 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:21:30,523 - app.services.queue_service - INFO - ID 189 adicionado à fila de ignorados
+2025-05-10 01:21:30,533 - app.services.queue_service - INFO - ID 189 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:03,440 - app.services.queue_service - INFO - ID 190 adicionado à fila de ignorados
+2025-05-10 01:22:03,455 - app.services.queue_service - INFO - ID 190 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:03,478 - app.services.queue_service - INFO - ID 191 adicionado à fila de ignorados
+2025-05-10 01:22:03,489 - app.services.queue_service - INFO - ID 191 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:03,514 - app.services.queue_service - INFO - ID 192 adicionado à fila de ignorados
+2025-05-10 01:22:03,526 - app.services.queue_service - INFO - ID 192 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:12,897 - app.services.queue_service - INFO - ID 193 adicionado à fila de ignorados
+2025-05-10 01:22:12,908 - app.services.queue_service - INFO - ID 193 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:12,928 - app.services.queue_service - INFO - ID 194 adicionado à fila de ignorados
+2025-05-10 01:22:12,939 - app.services.queue_service - INFO - ID 194 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:17,735 - app.services.queue_service - INFO - ID 195 adicionado à fila de ignorados
+2025-05-10 01:22:17,748 - app.services.queue_service - INFO - ID 195 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:22:17,770 - app.services.queue_service - INFO - ID 196 adicionado à fila de ignorados
+2025-05-10 01:22:17,780 - app.services.queue_service - INFO - ID 196 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:23:28,629 - app.services.queue_service - INFO - ID 197 adicionado à fila de ignorados
+2025-05-10 01:23:28,646 - app.services.queue_service - INFO - ID 197 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:35,769 - app.services.queue_service - INFO - ID 198 adicionado à fila de ignorados
+2025-05-10 01:24:35,794 - app.services.queue_service - INFO - ID 198 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:35,842 - app.services.queue_service - INFO - ID 199 adicionado à fila de ignorados
+2025-05-10 01:24:35,854 - app.services.queue_service - INFO - ID 199 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:41,872 - app.services.queue_service - INFO - ID 200 adicionado à fila de ignorados
+2025-05-10 01:24:41,885 - app.services.queue_service - INFO - ID 200 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,808 - app.services.queue_service - INFO - ID 201 adicionado à fila de ignorados
+2025-05-10 01:24:52,821 - app.services.queue_service - INFO - ID 201 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,838 - app.services.queue_service - INFO - ID 202 adicionado à fila de ignorados
+2025-05-10 01:24:52,850 - app.services.queue_service - INFO - ID 202 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,884 - app.services.queue_service - INFO - ID 203 adicionado à fila de ignorados
+2025-05-10 01:24:52,896 - app.services.queue_service - INFO - ID 203 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,924 - app.services.queue_service - INFO - ID 204 adicionado à fila de ignorados
+2025-05-10 01:24:52,935 - app.services.queue_service - INFO - ID 204 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,956 - app.services.queue_service - INFO - ID 205 adicionado à fila de ignorados
+2025-05-10 01:24:52,970 - app.services.queue_service - INFO - ID 205 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:52,997 - app.services.queue_service - INFO - ID 206 adicionado à fila de ignorados
+2025-05-10 01:24:53,009 - app.services.queue_service - INFO - ID 206 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:53,033 - app.services.queue_service - INFO - ID 207 adicionado à fila de ignorados
+2025-05-10 01:24:53,050 - app.services.queue_service - INFO - ID 207 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:53,080 - app.services.queue_service - INFO - ID 208 adicionado à fila de ignorados
+2025-05-10 01:24:53,093 - app.services.queue_service - INFO - ID 208 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:53,115 - app.services.queue_service - INFO - ID 209 adicionado à fila de ignorados
+2025-05-10 01:24:53,127 - app.services.queue_service - INFO - ID 209 removido do banco de dados. Linhas afetadas: 1
+2025-05-10 01:24:53,154 - app.services.queue_service - INFO - ID 210 adicionado à fila de ignorados
+2025-05-10 01:24:53,166 - app.services.queue_service - INFO - ID 210 removido do banco de dados. Linhas afetadas: 1

@@ -1,0 +1,95 @@
+.custom-checkbox-container {
+  display: inline-block;
+  position: relative;
+  padding-left: 0;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  width: 18px;
+  background-color: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.custom-checkbox-container:hover input ~ .checkmark {
+  border-color: #8f9ba8;
+  background-color: #e8eaed;
+}
+
+.custom-checkbox-container input:checked ~ .checkmark {
+  background-color: #1a73e8;
+  border-color: #1a73e8;
+  transform: scale(1.05);
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* Disabled state */
+.custom-checkbox-container input:disabled ~ .checkmark {
+  background-color: #f1f3f4;
+  border-color: #dadce0;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.custom-checkbox-container input:disabled ~ .checkmark:after {
+  border-color: #b4b4b4;
+}
+
+.custom-checkbox-container:hover input:disabled ~ .checkmark {
+  border-color: #dadce0;
+  background-color: #f1f3f4;
+}
+
+/* Focus styles for accessibility */
+.custom-checkbox-container input:focus ~ .checkmark {
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.3);
+}
+
+/* Indeterminate state (partially checked) */
+.custom-checkbox-container input:indeterminate ~ .checkmark {
+  background-color: #1a73e8;
+  border-color: #1a73e8;
+}
+
+.custom-checkbox-container input:indeterminate ~ .checkmark:after {
+  display: block;
+  border-width: 0 0 2px 0;
+  height: 0;
+  width: 8px;
+  top: 8px;
+  transform: rotate(0deg);
+} 

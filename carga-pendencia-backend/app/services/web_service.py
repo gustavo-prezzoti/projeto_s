@@ -160,12 +160,19 @@ class WebService:
         # Definir tempos de espera padrão se não forem fornecidos
         if wait_times is None:
             wait_times = {
-                "page_load": 20,  # Tempo para carregar página
-                "after_click": 10,  # Tempo após cliques
-                "form_fill": 5,  # Tempo para preenchimento de formulário
-                "element_wait": 10,  # Timeout para esperar elementos
-                "between_tasks": 3,  # Tempo entre tarefas do batch
+                "page_load": 40,  # Aumentado de 20 para 40
+                "after_click": 20,  # Aumentado de 10 para 20
+                "form_fill": 10,  # Aumentado de 5 para 10
+                "element_wait": 30,  # Aumentado de 10 para 30
+                "between_tasks": 5,  # Aumentado de 3 para 5
             }
+        else:
+            # Garantir valores mínimos para sistemas com conexão lenta
+            wait_times["page_load"] = max(wait_times.get("page_load", 20), 30)
+            wait_times["after_click"] = max(wait_times.get("after_click", 10), 15)
+            wait_times["form_fill"] = max(wait_times.get("form_fill", 5), 8)
+            wait_times["element_wait"] = max(wait_times.get("element_wait", 10), 20)
+            wait_times["between_tasks"] = max(wait_times.get("between_tasks", 3), 5)
 
         logger.info(
             f"Usando tempos de espera: page_load={wait_times['page_load']}s, after_click={wait_times['after_click']}s"
@@ -2255,33 +2262,67 @@ class WebService:
         start = time.time()
         last_count = None
         stable_since = None
+        consecutive_stable_counts = 0
+        required_stable_counts = 3  # Número de verificações consecutivas onde o DOM deve estar estável
+        
+        logger.info(f"Aguardando spinner desaparecer e DOM estabilizar por {stable_time}s (timeout total: {timeout}s)")
+        
         while time.time() - start < timeout:
-            # Verifica se o spinner está visível
-            spinners = driver.find_elements(By.XPATH, spinner_xpath)
-            visible = (
-                any(s.is_displayed() for s in spinners) if spinners else False
-            )
-            if visible:
-                stable_since = None
-                time.sleep(0.5)
-                continue
-            # Conta elementos relevantes
-            count = len(driver.find_elements(By.TAG_NAME, "a")) + len(
-                driver.find_elements(By.TAG_NAME, "button")
-            )
-            if last_count == count:
-                if stable_since is None:
-                    stable_since = time.time()
-                elif time.time() - stable_since >= stable_time:
-                    logger.info(
-                        f"Spinner sumiu e DOM estável por {stable_time}s, pronto para interação."
-                    )
-                    return True
-            else:
-                stable_since = None
-            last_count = count
+            try:
+                # Verifica se o spinner está visível
+                spinners = driver.find_elements(By.XPATH, spinner_xpath)
+                visible = (
+                    any(s.is_displayed() for s in spinners) if spinners else False
+                )
+                if visible:
+                    logger.info("Spinner ainda visível, aguardando...")
+                    stable_since = None
+                    consecutive_stable_counts = 0
+                    time.sleep(1)  # Mais paciente ao esperar o spinner
+                    continue
+                    
+                # Conta elementos relevantes para detectar estabilidade do DOM
+                count_items = {
+                    "links": len(driver.find_elements(By.TAG_NAME, "a")),
+                    "buttons": len(driver.find_elements(By.TAG_NAME, "button")),
+                    "inputs": len(driver.find_elements(By.TAG_NAME, "input")),
+                    "divs": min(100, len(driver.find_elements(By.TAG_NAME, "div")))  # Limitar para não ficar muito pesado
+                }
+                count = sum(count_items.values())
+                
+                logger.info(f"Contagem atual de elementos: {count_items}")
+                
+                if last_count == count:
+                    if stable_since is None:
+                        stable_since = time.time()
+                        logger.info("DOM começou a estabilizar")
+                    
+                    # Se o DOM está estável pelo tempo mínimo necessário
+                    if time.time() - stable_since >= stable_time:
+                        consecutive_stable_counts += 1
+                        logger.info(f"DOM estável por {time.time() - stable_since:.1f}s (sequência: {consecutive_stable_counts}/{required_stable_counts})")
+                        
+                        # Se temos várias verificações consecutivas estáveis, considera estabilizado
+                        if consecutive_stable_counts >= required_stable_counts:
+                            logger.info(f"✅ DOM estável por {time.time() - stable_since:.1f}s e {consecutive_stable_counts} verificações consecutivas, pronto para interação.")
+                            return True
+                else:
+                    if last_count is not None:
+                        logger.info(f"DOM ainda instável: mudou de {last_count} para {count} elementos")
+                    stable_since = None
+                    consecutive_stable_counts = 0
+                    
+                last_count = count
+                
+            except Exception as e:
+                logger.warning(f"Erro ao verificar estabilidade do DOM: {e}")
+                # Continuar tentando mesmo com erro
+            
+            # Aguarda um pouco antes da próxima verificação
             time.sleep(0.5)
+            
         logger.warning(
-            f"Timeout esperando spinner sumir e DOM estabilizar por {stable_time}s."
+            f"Timeout esperando spinner sumir e DOM estabilizar por {stable_time}s (timeout total: {timeout}s)."
         )
+        # Mesmo com timeout, tentar continuar a execução
         return False
