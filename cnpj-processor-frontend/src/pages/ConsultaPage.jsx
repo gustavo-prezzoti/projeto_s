@@ -168,14 +168,6 @@ const ConsultaPage = () => {
         currentFilters: {...filters}
       };
       
-      // Reset to first page when filters change
-      setCurrentPage(1);
-      
-      // Update displayed items for the first page
-      const startIndex = 0;
-      const endIndex = itemsPerPage;
-      setCnpjs(allDataRef.current.cnpjs.slice(startIndex, endIndex));
-      
       // Calcular estatísticas com base nos dados filtrados
       const stats = {
         total: filteredCnpjs.length,
@@ -186,6 +178,15 @@ const ConsultaPage = () => {
       };
       
       setStats(stats);
+      
+      // Atualizar a página atual apenas se for uma nova busca (não uma atualização)
+      const isNewSearch = JSON.stringify(filters) !== JSON.stringify(allDataRef.current.currentFilters);
+      if (isNewSearch) {
+        setCurrentPage(1);
+      }
+      
+      // Update displayed items for the current page
+      updateDisplayedItems();
       
     } catch (error) {
       console.error('Erro ao carregar CNPJs:', error);
@@ -240,15 +241,17 @@ const ConsultaPage = () => {
                  (cnpj.municipio?.toLowerCase().includes(searchTerm));
         });
       }
+
+      // Aplicar filtro de status se existir
+      if (filters.status) {
+        filteredCnpjs = filteredCnpjs.filter(cnpj => cnpj.status === filters.status);
+      }
       
       // Store complete data in ref
       allDataRef.current = {
         cnpjs: filteredCnpjs,
         currentFilters: {...filters}
       };
-      
-      // Update displayed items based on current page
-      updateDisplayedItems();
       
       // Calcular estatísticas com base nos dados filtrados
       const stats = {
@@ -261,10 +264,11 @@ const ConsultaPage = () => {
       
       setStats(stats);
       
+      // Update displayed items based on current page
+      updateDisplayedItems();
+      
     } catch (error) {
-      // eslint-disable-next-line no-unused-vars
       console.error('Erro na atualização automática:', error);
-      // Não mostrar erro para o usuário em atualizações silenciosas
     }
   };
 
@@ -279,7 +283,8 @@ const ConsultaPage = () => {
   const applyFilters = (e) => {
     e.preventDefault();
     setFilterLoading(true);
-    setCurrentPage(1); // Resetar para a primeira página ao aplicar filtros
+    // Resetar para a primeira página apenas quando aplicar novos filtros
+    setCurrentPage(1);
     loadCnpjs().finally(() => {
       setFilterLoading(false);
     });
