@@ -216,40 +216,16 @@ class WebService:
                 chrome_options.add_argument("--start-maximized")
                 # Desabilitar impressão automática
                 chrome_options.add_argument("--disable-print-preview")
-                
-                # Adicionar um diretório de dados único para cada instância
-                import tempfile
-                import uuid
-                import shutil
-                import atexit
-                
-                # Criar um diretório temporário único para o user data
-                temp_user_data_dir = tempfile.mkdtemp(prefix=f"chrome_user_data_{uuid.uuid4()}_")
-                chrome_options.add_argument(f"--user-data-dir={temp_user_data_dir}")
-                
-                # Registrar uma função para limpar o diretório temporário quando o programa terminar
-                def cleanup_temp_dir():
-                    try:
-                        if os.path.exists(temp_user_data_dir):
-                            shutil.rmtree(temp_user_data_dir, ignore_errors=True)
-                            logger.info(f"Diretório temporário removido: {temp_user_data_dir}")
-                    except Exception as e:
-                        logger.error(f"Erro ao remover diretório temporário: {e}")
-                
-                atexit.register(cleanup_temp_dir)
-                
-                # Matar quaisquer processos Chrome existentes antes de iniciar um novo
-                try:
-                    WebService.kill_chrome_processes()
-                    logger.info("Processos Chrome antigos foram terminados")
-                except Exception as kill_error:
-                    logger.warning(f"Erro ao tentar matar processos Chrome: {kill_error}")
-                
-                # Configuração para baixar PDF automaticamente na pasta 'document'
                 # Simular usuário real para evitar detecção de automação
-                chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-                chrome_options.add_experimental_option("useAutomationExtension", False)
+                chrome_options.add_argument(
+                    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                chrome_options.add_experimental_option(
+                    "excludeSwitches", ["enable-automation"]
+                )
+                chrome_options.add_experimental_option(
+                    "useAutomationExtension", False
+                )
                 # Configuração para baixar PDF automaticamente na pasta 'document'
                 download_dir = os.path.abspath("document")
                 os.makedirs(download_dir, exist_ok=True)
@@ -2201,61 +2177,13 @@ class WebService:
 
             elif "linux" in system:  # Linux
                 try:
-                    # Usar comandos mais agressivos no Linux
-                    logger.info("Tentando eliminar processos Chrome no Linux")
-                    
-                    # Primeiro tenta usar pkill
-                    try:
-                        subprocess.run(["pkill", "-9", "-f", "chrome"], stderr=subprocess.PIPE)
-                        subprocess.run(["pkill", "-9", "-f", "chromedriver"], stderr=subprocess.PIPE)
-                        logger.info("Eliminados processos Chrome com pkill")
-                    except Exception as pkill_error:
-                        logger.warning(f"Erro com pkill: {pkill_error}")
-                    
-                    # Depois tenta com killall
-                    try:
-                        subprocess.run(["killall", "-9", "chrome"], stderr=subprocess.PIPE)
-                        subprocess.run(["killall", "-9", "chromedriver"], stderr=subprocess.PIPE)
-                        logger.info("Eliminados processos Chrome com killall")
-                    except Exception as killall_error:
-                        logger.warning(f"Erro com killall: {killall_error}")
-                    
-                    # Matar processos via psutil (abordagem mais genérica)
-                    killed_count = 0
-                    for proc in psutil.process_iter(['pid', 'name']):
-                        try:
-                            # Verificar se é Chrome baseado no nome do processo
-                            if "chrome" in proc.name().lower():
-                                logger.info(f"Matando processo Chrome: {proc.pid}")
-                                proc.kill()  # Usa SIGKILL (mais agressivo que terminate())
-                                killed_count += 1
-                        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                            continue
-                        except Exception as proc_error:
-                            logger.warning(f"Erro ao matar processo {proc.pid}: {proc_error}")
-                    
-                    logger.info(f"Total de {killed_count} processos Chrome mortos via psutil")
-                    
-                    # Limpar possíveis diretórios temporários do Chrome
-                    try:
-                        # Remover diretórios temporários conhecidos do Chrome
-                        temp_patterns = [
-                            "/tmp/.org.chromium.Chromium*",
-                            "/tmp/.com.google.Chrome*",
-                            "/tmp/chrome_*",
-                            "/tmp/chromedriver*"
-                        ]
-                        for pattern in temp_patterns:
-                            for dir_path in glob.glob(pattern):
-                                try:
-                                    if os.path.isdir(dir_path):
-                                        shutil.rmtree(dir_path, ignore_errors=True)
-                                        logger.info(f"Removido diretório: {dir_path}")
-                                except Exception as rm_error:
-                                    logger.warning(f"Erro ao remover {dir_path}: {rm_error}")
-                    except Exception as tmp_error:
-                        logger.warning(f"Erro ao limpar diretórios temporários: {tmp_error}")
-                        
+                    # No Linux podemos usar comandos específicos
+                    subprocess.run(
+                        ["pkill", "-f", "chrome"], stderr=subprocess.PIPE
+                    )
+                    subprocess.run(
+                        ["pkill", "-f", "chromedriver"], stderr=subprocess.PIPE
+                    )
                 except Exception as e:
                     logger.error(
                         f"Erro ao matar processos Chrome no Linux: {str(e)}"
