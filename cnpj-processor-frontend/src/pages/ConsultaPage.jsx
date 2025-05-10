@@ -156,6 +156,11 @@ const ConsultaPage = () => {
                  (cnpj.municipio?.toLowerCase().includes(searchTerm));
         });
       }
+
+      // Aplicar filtro de status se existir
+      if (filters.status) {
+        filteredCnpjs = filteredCnpjs.filter(cnpj => cnpj.status === filters.status);
+      }
       
       // Store complete data in ref
       allDataRef.current = {
@@ -183,7 +188,6 @@ const ConsultaPage = () => {
       setStats(stats);
       
     } catch (error) {
-      // eslint-disable-next-line no-unused-vars
       console.error('Erro ao carregar CNPJs:', error);
       setError('Falha ao processar');
     } finally {
@@ -528,14 +532,16 @@ const ConsultaPage = () => {
   const renderActions = (cnpj) => {
     const isReprocessing = reprocessingIds.includes(cnpj.id);
     const isViewingCertificate = viewingCertificateIds.includes(cnpj.id);
+    const canDelete = cnpj.status !== 'processando';
     
     return (
       <div className="action-buttons">
-        {/* Botão de exclusão (sempre visível) */}
+        {/* Botão de exclusão (sempre visível, mas desabilitado se estiver processando) */}
         <button 
           className="btn btn-sm btn-delete" 
           onClick={() => handleDeleteCnpj(cnpj.id, cnpj.cnpj)}
-          title="Excluir CNPJ"
+          title={canDelete ? "Excluir CNPJ" : "Não é possível excluir CNPJs em processamento"}
+          disabled={!canDelete}
         >
           <FiTrash2 />
         </button>
@@ -611,8 +617,13 @@ const ConsultaPage = () => {
   };
 
   const handleOpenDeleteModal = (id = null, cnpj = null) => {
-    // If id is provided, it's a single item deletion
+    // Se for deleção individual
     if (id !== null) {
+      const cnpjToDelete = allDataRef.current.cnpjs.find(item => item.id === id);
+      if (cnpjToDelete && cnpjToDelete.status === 'processando') {
+        setError('Não é possível excluir CNPJs em processamento');
+        return;
+      }
       setConfirmationModal({
         isOpen: true,
         title: 'Confirmar Exclusão',
@@ -621,9 +632,16 @@ const ConsultaPage = () => {
         isLoading: false
       });
     } 
-    // Otherwise it's a batch deletion
+    // Se for deleção em lote
     else if (selectedCnpjs.length > 0) {
       const selectedItems = cnpjs.filter(item => selectedCnpjs.includes(item.id));
+      const hasProcessingItems = selectedItems.some(item => item.status === 'processando');
+      
+      if (hasProcessingItems) {
+        setError('Não é possível excluir CNPJs em processamento');
+        return;
+      }
+      
       setConfirmationModal({
         isOpen: true,
         title: 'Confirmar Exclusão em Lote',

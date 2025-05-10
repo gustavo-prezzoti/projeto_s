@@ -456,32 +456,70 @@ async def reprocess_pending_cnpjs(
                 cnpjs=[]
             )
         
-        # Reprocessar cada CNPJ pendente
-        reprocessed_count = 0
+        # Armazenar IDs para exclusão
+        ids_para_excluir = []
         for row in pending_rows:
-            cnpj_obj = CNPJ(
-                cnpj=row['cnpj'],
-                razao_social=row['nome'],
-                municipio=row['municipio']
-            )
-            
-            # Atualizar o status para pendente (caso estivesse com erro)
-            cursor.execute(
-                "UPDATE fila_cnpj SET status = %s WHERE id = %s",
-                ("pendente", row['id'])
-            )
-            
-            # Reenviar para a fila - preservar o user_id existente
-            send_to_queue_and_db(cnpj_obj, user_id=row.get('user_id') or user_id)
-            reprocessed_count += 1
+            if 'id' in row and row['id']:
+                ids_para_excluir.append(row['id'])
         
-        conn.commit()
+        cnpjs_processados = []
+        
+        # Reprocessar cada CNPJ pendente, criando novo registro
+        for row in pending_rows:
+            try:
+                # Extrair os dados do CNPJ com tratamento para evitar KeyError
+                cnpj_str = row.get('cnpj', '')
+                razao_social = row.get('razao_social', '') or row.get('nome', 'Empresa')
+                municipio = row.get('municipio', '')
+                
+                # Criar objeto CNPJ corretamente
+                cnpj_obj = CNPJ(
+                    cnpj=cnpj_str,
+                    razao_social=razao_social,
+                    municipio=municipio
+                )
+                
+                # Preservar o user_id original ou usar o atual
+                row_user_id = row.get('user_id') or user_id
+                
+                # Enviar para a fila e criar novo registro
+                new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
+                
+                cnpjs_processados.append({
+                    "nome": razao_social,
+                    "cnpj": cnpj_obj.cnpj,
+                    "cnpj_formatado": CNPJService.format_cnpj(cnpj_obj.cnpj),
+                    "razao_social": razao_social,
+                    "municipio": municipio,
+                    "old_id": row.get('id', 0),
+                    "new_id": new_id,
+                    "interaction_result": {
+                        "status": "queued",
+                        "message": f"CNPJ {CNPJService.format_cnpj(cnpj_obj.cnpj)} foi enviado para processamento"
+                    },
+                    "screenshots": []
+                })
+            except Exception as item_error:
+                print(f"Erro ao processar item específico: {item_error}")
+        
+        # Excluir registros antigos
+        if ids_para_excluir:
+            placeholders = ", ".join(["%s"] * len(ids_para_excluir))
+            cursor.execute(
+                f"DELETE FROM fila_cnpj WHERE id IN ({placeholders})",
+                ids_para_excluir
+            )
+            conn.commit()
+            print(f"Excluídos {len(ids_para_excluir)} registros antigos")
+        else:
+            print("Nenhum registro encontrado para exclusão")
+        
         cursor.close()
         conn.close()
         
         return CNPJProcessingResponse(
-            total_processed=reprocessed_count,
-            cnpjs=[]
+            total_processed=len(cnpjs_processados),
+            cnpjs=cnpjs_processados
         )
     
     except Exception as e:
@@ -547,52 +585,70 @@ async def reprocessar_erros_excel(
                 cnpjs=[]
             )
         
-        # Reprocessar cada CNPJ com erro
-        reprocessed_count = 0
+        # Armazenar IDs para exclusão
+        ids_para_excluir = []
         for row in erros_rows:
-            cnpj_obj = CNPJ(
-                cnpj=row['cnpj'],
-                razao_social=row['nome'],
-                municipio=row['municipio']
-            )
-            
-            # Atualizar o status para pendente
-            cursor.execute(
-                "UPDATE fila_cnpj SET status = %s, resultado = %s WHERE id = %s",
-                ("pendente", "", row['id'])
-            )
-            
-            # Enviar para a fila
-            # Nota: não usamos send_to_queue_and_db que criaria uma nova entrada
-            # Em vez disso, enviamos diretamente o ID existente para a fila
-            try:
-                import pika
-                # Usar a mesma lógica para obter RABBITMQ_HOST que está no queue_service
-                from app.services.queue_service import RABBITMQ_HOST
-                connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))
-                channel = connection.channel()
-                channel.queue_declare(queue='fila_cnpj')
-                channel.basic_publish(
-                    exchange='',
-                    routing_key='fila_cnpj',
-                    body=str(row['id'])
-                )
-                connection.close()
-                reprocessed_count += 1
-            except Exception as e:
-                # Se falhar ao enviar para a fila, reverter o status para erro
-                cursor.execute(
-                    "UPDATE fila_cnpj SET status = %s, resultado = %s WHERE id = %s",
-                    ("erro", f"Erro ao reprocessar: {str(e)}", row['id'])
-                )
+            if 'id' in row and row['id']:
+                ids_para_excluir.append(row['id'])
         
-        conn.commit()
+        cnpjs_processados = []
+        
+        # Reprocessar cada CNPJ com erro, criando novo registro
+        for row in erros_rows:
+            try:
+                # Extrair os dados do CNPJ com tratamento para evitar KeyError
+                cnpj_str = row.get('cnpj', '')
+                razao_social = row.get('razao_social', '') or row.get('nome', 'Empresa')
+                municipio = row.get('municipio', '')
+                
+                # Criar objeto CNPJ corretamente
+                cnpj_obj = CNPJ(
+                    cnpj=cnpj_str,
+                    razao_social=razao_social,
+                    municipio=municipio
+                )
+                
+                # Preservar o user_id original ou usar o atual
+                row_user_id = row.get('user_id') or user_id
+                
+                # Enviar para a fila e criar novo registro
+                new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
+                
+                cnpjs_processados.append({
+                    "nome": razao_social,
+                    "cnpj": cnpj_obj.cnpj,
+                    "cnpj_formatado": CNPJService.format_cnpj(cnpj_obj.cnpj),
+                    "razao_social": razao_social,
+                    "municipio": municipio,
+                    "old_id": row.get('id', 0),
+                    "new_id": new_id,
+                    "interaction_result": {
+                        "status": "queued",
+                        "message": f"CNPJ {CNPJService.format_cnpj(cnpj_obj.cnpj)} foi enviado para processamento"
+                    },
+                    "screenshots": []
+                })
+            except Exception as item_error:
+                print(f"Erro ao processar item específico: {item_error}")
+        
+        # Excluir registros antigos
+        if ids_para_excluir:
+            placeholders = ", ".join(["%s"] * len(ids_para_excluir))
+            cursor.execute(
+                f"DELETE FROM fila_cnpj WHERE id IN ({placeholders})",
+                ids_para_excluir
+            )
+            conn.commit()
+            print(f"Excluídos {len(ids_para_excluir)} registros antigos com erro")
+        else:
+            print("Nenhum registro encontrado para exclusão")
+        
         cursor.close()
         conn.close()
         
         return CNPJProcessingResponse(
-            total_processed=reprocessed_count,
-            cnpjs=[]
+            total_processed=len(cnpjs_processados),
+            cnpjs=cnpjs_processados
         )
     
     except Exception as e:
