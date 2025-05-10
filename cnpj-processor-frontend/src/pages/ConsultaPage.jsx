@@ -71,11 +71,13 @@ const ConsultaPage = () => {
         clearInterval(autoRefreshIntervalRef.current);
       }
     };
-  }, [autoRefresh]); // Remove filters and currentPage from dependencies
+  }, [autoRefresh, filters]); // Adicionar filters como dependência
 
   // Update displayed items when page changes
   useEffect(() => {
-    updateDisplayedItems();
+    if (allDataRef.current.cnpjs.length > 0) {
+      updateDisplayedItems();
+    }
     // Clear selections when changing pages
     setSelectedCnpjs([]);
     setSelectAll(false);
