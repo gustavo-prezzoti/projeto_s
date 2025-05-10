@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
-
+// Use relative path with /api prefix instead of absolute URL
+// This allows it to work with proxy configurations
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '/api',
 });
 
 export const uploadExcel = async (file) => {
