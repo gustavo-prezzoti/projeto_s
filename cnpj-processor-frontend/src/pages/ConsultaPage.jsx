@@ -395,7 +395,7 @@ const ConsultaPage = () => {
     
     try {
       // Use the dedicated API for individual CNPJ reprocessing
-      await reprocessarCnpjIndividual(id, false);
+      await reprocessarCnpjIndividual(id, true);
       setMessage(`CNPJ ${cnpj} enviado para reprocessamento!`);
       
       // Instead of reloading all data, just remove this CNPJ from the current list

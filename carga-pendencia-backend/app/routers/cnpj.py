@@ -837,11 +837,20 @@ async def reprocessar_cnpj_individual(
         
         # Se solicitado, excluir o registro existente
         if deletar_registro:
+            # Primeiro, verificar se o registro ainda existe
             cursor.execute(
-                "DELETE FROM fila_cnpj WHERE id = %s",
+                "SELECT id FROM fila_cnpj WHERE id = %s",
                 (cnpj_id,)
             )
-            conn.commit()
+            if cursor.fetchone():
+                cursor.execute(
+                    "DELETE FROM fila_cnpj WHERE id = %s",
+                    (cnpj_id,)
+                )
+                conn.commit()
+                print(f"Registro antigo {cnpj_id} excluído com sucesso")
+            else:
+                print(f"Registro antigo {cnpj_id} já não existe mais")
             
         # Enviar para a fila e criar novo registro
         new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
