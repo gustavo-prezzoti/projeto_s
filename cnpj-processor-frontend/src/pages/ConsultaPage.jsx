@@ -565,8 +565,8 @@ const ConsultaPage = () => {
           </button>
         )}
         
-        {/* Botão para ver certidão se estiver concluído e tiver full_result */}
-        {cnpj.status === 'concluido' && cnpj.full_result && (
+        {/* Botão para ver certidão se estiver concluído */}
+        {cnpj.status === 'concluido' && (
           <button 
             className="btn btn-sm btn-info" 
             onClick={() => handleShowFullResult(cnpj.full_result, cnpj.id)}
