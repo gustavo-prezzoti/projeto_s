@@ -569,7 +569,7 @@ const ConsultaPage = () => {
         {cnpj.status === 'concluido' && (
           <button 
             className="btn btn-sm btn-info" 
-            onClick={() => handleShowFullResult(cnpj.full_result, cnpj.id)}
+            onClick={() => handleShowFullResult(cnpj.resultado, cnpj.id)}
             disabled={isViewingCertificate}
             title="Ver Certidão"
           >

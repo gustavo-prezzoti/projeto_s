@@ -52,4 +52,5 @@ class ListCNPJResponse(BaseModel):
     pdf_path: Optional[str] = None
     data_criacao: str
     data_atualizacao: Optional[str] = None
-    user_id: Optional[int] = None 
+    user_id: Optional[int] = None
+    full_result: Optional[str] = None 
