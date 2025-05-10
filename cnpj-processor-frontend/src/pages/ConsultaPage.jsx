@@ -565,11 +565,11 @@ const ConsultaPage = () => {
           </button>
         )}
         
-        {/* Botão para ver certidão se estiver concluído */}
-        {cnpj.status === 'concluido' && (
+        {/* Botão para ver certidão se estiver concluído e tiver full_result */}
+        {cnpj.status === 'concluido' && cnpj.full_result && (
           <button 
             className="btn btn-sm btn-info" 
-            onClick={() => handleShowFullResult(cnpj.resultado, cnpj.id)}
+            onClick={() => handleShowFullResult(cnpj.full_result, cnpj.id)}
             disabled={isViewingCertificate}
             title="Ver Certidão"
           >
