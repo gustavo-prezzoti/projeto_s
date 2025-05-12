@@ -142,20 +142,12 @@ const ConsultaPage = () => {
       if (filters.textoErro) {
         const searchTerm = filters.textoErro.toLowerCase();
         filteredCnpjs = filteredCnpjs.filter(cnpj => {
-          // Para status de erro, verificar se o texto de erro contém o termo buscado
-          if (cnpj.status === 'erro' && cnpj.resultado) {
-            return cnpj.resultado.toLowerCase().includes(searchTerm);
-          }
-          
-          // Para CNPJs concluídos, verificar se o resultado contém o termo buscado
-          if (cnpj.status === 'concluido' && cnpj.resultado) {
-            return cnpj.resultado.toLowerCase().includes(searchTerm);
-          }
-          
-          // Verificar também na razão social, município e CNPJ
-          return (cnpj.razao_social?.toLowerCase().includes(searchTerm)) || 
-                 (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
-                 (cnpj.municipio?.toLowerCase().includes(searchTerm));
+          return (
+            (cnpj.resultado?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.razao_social?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.municipio?.toLowerCase().includes(searchTerm))
+          );
         });
       }
 
@@ -227,20 +219,12 @@ const ConsultaPage = () => {
       if (filters.textoErro) {
         const searchTerm = filters.textoErro.toLowerCase();
         filteredCnpjs = filteredCnpjs.filter(cnpj => {
-          // Para status de erro, verificar se o texto de erro contém o termo buscado
-          if (cnpj.status === 'erro' && cnpj.resultado) {
-            return cnpj.resultado.toLowerCase().includes(searchTerm);
-          }
-          
-          // Para CNPJs concluídos, verificar se o resultado contém o termo buscado
-          if (cnpj.status === 'concluido' && cnpj.resultado) {
-            return cnpj.resultado.toLowerCase().includes(searchTerm);
-          }
-          
-          // Verificar também na razão social, município e CNPJ
-          return (cnpj.razao_social?.toLowerCase().includes(searchTerm)) || 
-                 (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
-                 (cnpj.municipio?.toLowerCase().includes(searchTerm));
+          return (
+            (cnpj.resultado?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.razao_social?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
+            (cnpj.municipio?.toLowerCase().includes(searchTerm))
+          );
         });
       }
 
