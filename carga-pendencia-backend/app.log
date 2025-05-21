@@ -647,3 +647,9 @@
 2025-05-21 14:02:40,084 - root - INFO - Chrome process cleanup completed
 2025-05-21 14:07:02,983 - root - INFO - Cleaning up Chrome processes...
 2025-05-21 14:07:04,260 - root - INFO - Chrome process cleanup completed
+2025-05-21 14:07:09,757 - root - INFO - Cleaning up Chrome processes...
+2025-05-21 14:07:11,350 - root - INFO - Chrome process cleanup completed
+2025-05-21 14:20:23,355 - root - INFO - Cleaning up Chrome processes...
+2025-05-21 14:20:24,986 - root - INFO - Chrome process cleanup completed
+2025-05-21 14:20:34,564 - app.database.config - INFO - Cliente Supabase inicializado com sucesso
+2025-05-21 14:20:34,663 - httpx - INFO - HTTP Request: GET https://tvcnimbrqzimfggfhqst.supabase.co/rest/v1/users?select=%2A&username=eq.string&password=eq.473287f8298dba7163a897908958f7c0eae733e25d2e027992ea2edc9bed2fa8 "HTTP/2 200 OK"

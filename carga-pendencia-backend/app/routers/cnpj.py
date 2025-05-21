@@ -775,3 +775,208 @@ async def delete_cnpj(
         )
     
     return None  # 204 No Content 
+
+@router.get("/reprocessar-erros-recriando", response_model=CNPJProcessingResponse)
+async def reprocessar_erros_recriando(
+    texto_erro: Optional[str] = Query(None, description="Filtrar por texto específico de erro (ex: 'PDF não encontrado')"),
+    dias: Optional[int] = Query(7, description="Processar erros dos últimos X dias"),
+    limite: Optional[int] = Query(100, description="Limite máximo de registros para processar"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Reprocessar CNPJs com erro, recriando-os no banco de dados e na fila
+    
+    Args:
+        texto_erro: Filtrar por texto específico no erro
+        dias: Processar erros dos últimos X dias (padrão: 7)
+        limite: Número máximo de registros a processar (padrão: 100)
+        current_user: Usuário autenticado atual
+        
+    Returns:
+        Resultado da operação com o número total de CNPJs reenfileirados
+    """
+    try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
+        # Obter todos os CNPJs do usuário com status de erro
+        all_cnpjs = get_all_cnpjs(user_id)
+        
+        # Filtrar apenas os que têm status 'erro'
+        erros_rows = [row for row in all_cnpjs if row.get('status') == 'erro']
+        
+        # Filtrar por texto de erro específico
+        if texto_erro:
+            erros_rows = [row for row in erros_rows if texto_erro.lower() in (row.get('resultado', '') or '').lower()]
+        
+        # Filtrar por data
+        if dias:
+            data_limite = datetime.now() - timedelta(days=dias)
+            # Converter para string para comparação mais simples
+            data_limite_str = data_limite.strftime("%Y-%m-%d")
+            
+            # Filtrar resultados onde data_criacao é maior que data_limite
+            erros_rows = [
+                row for row in erros_rows 
+                if row.get('data_criacao') and str(row.get('data_criacao')).split('T')[0] >= data_limite_str
+            ]
+        
+        # Limitar número de registros a processar
+        if limite and len(erros_rows) > limite:
+            erros_rows = erros_rows[:limite]
+        
+        if not erros_rows:
+            return CNPJProcessingResponse(
+                total_processed=0,
+                cnpjs=[]
+            )
+        
+        # Armazenar IDs para exclusão
+        ids_para_excluir = []
+        for row in erros_rows:
+            if 'id' in row and row['id']:
+                ids_para_excluir.append(row['id'])
+        
+        cnpjs_processados = []
+        
+        # Reprocessar cada CNPJ com erro, criando novo registro
+        for row in erros_rows:
+            try:
+                # Extrair os dados do CNPJ com tratamento para evitar KeyError
+                cnpj_str = row.get('cnpj', '')
+                razao_social = row.get('razao_social', '') or row.get('nome', 'Empresa')
+                municipio = row.get('municipio', '')
+                
+                # Criar objeto CNPJ corretamente
+                cnpj_obj = CNPJ(
+                    cnpj=cnpj_str,
+                    razao_social=razao_social,
+                    municipio=municipio
+                )
+                
+                # Preservar o user_id original ou usar o atual
+                row_user_id = row.get('user_id') or user_id
+                
+                # Enviar para a fila e criar novo registro
+                new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
+                
+                cnpjs_processados.append({
+                    "nome": razao_social,
+                    "cnpj": cnpj_obj.cnpj,
+                    "cnpj_formatado": CNPJService.format_cnpj(cnpj_obj.cnpj),
+                    "razao_social": razao_social,
+                    "municipio": municipio,
+                    "old_id": row.get('id', 0),
+                    "new_id": new_id,
+                    "interaction_result": {
+                        "status": "queued",
+                        "message": f"CNPJ {CNPJService.format_cnpj(cnpj_obj.cnpj)} foi enviado para processamento"
+                    },
+                    "screenshots": []
+                })
+            except Exception as item_error:
+                print(f"Erro ao processar item específico: {item_error}")
+        
+        # Excluir registros antigos
+        for fila_id in ids_para_excluir:
+            delete_from_queue_by_id(fila_id, user_id)
+            print(f"Registro antigo {fila_id} excluído com sucesso")
+        
+        return CNPJProcessingResponse(
+            total_processed=len(cnpjs_processados),
+            cnpjs=cnpjs_processados
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJs com erro: {str(e)}")
+
+@router.get("/reprocessar-cnpj-individual", response_model=CNPJProcessingResponse)
+async def reprocessar_cnpj_individual(
+    cnpj_id: int = Query(..., description="ID do registro do CNPJ a ser reprocessado"),
+    deletar_registro: bool = Query(False, description="Se o registro original deve ser excluído após reprocessar"),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Reprocessar um único CNPJ pelo seu ID
+    
+    Args:
+        cnpj_id: ID do registro do CNPJ na tabela fila_cnpj
+        deletar_registro: Se True, o registro original será excluído após criar um novo
+        current_user: Usuário autenticado atual
+        
+    Returns:
+        Resultado da operação com detalhes do CNPJ reprocessado
+    """
+    try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
+        # Obter os dados do CNPJ pelo ID
+        all_cnpjs = get_all_cnpjs(user_id)
+        
+        # Encontrar o registro específico
+        cnpj_record = None
+        for record in all_cnpjs:
+            if record.get('id') == cnpj_id:
+                cnpj_record = record
+                break
+        
+        if not cnpj_record:
+            raise HTTPException(
+                status_code=404,
+                detail=f"CNPJ com ID {cnpj_id} não encontrado ou você não tem permissão para acessá-lo"
+            )
+        
+        # Extrair os dados do CNPJ
+        cnpj_str = cnpj_record.get('cnpj', '')
+        razao_social = cnpj_record.get('razao_social', '') or cnpj_record.get('nome', 'Empresa')
+        municipio = cnpj_record.get('municipio', '')
+        
+        # Verificar se o CNPJ tem um formato válido
+        if not cnpj_str or len(re.sub(r'[^\d]', '', cnpj_str)) != 14:
+            raise HTTPException(
+                status_code=400,
+                detail=f"CNPJ inválido: {cnpj_str}"
+            )
+        
+        # Criar objeto CNPJ
+        cnpj_obj = CNPJ(
+            cnpj=cnpj_str,
+            razao_social=razao_social,
+            municipio=municipio
+        )
+        
+        # Preservar o user_id original ou usar o atual
+        row_user_id = cnpj_record.get('user_id') or user_id
+        
+        # Enviar para a fila e criar novo registro
+        new_id = send_to_queue_and_db(cnpj_obj, user_id=row_user_id)
+        
+        # Se solicitado, excluir o registro original
+        if deletar_registro:
+            delete_from_queue_by_id(cnpj_id, user_id)
+            print(f"Registro original {cnpj_id} excluído com sucesso")
+        
+        # Preparar resposta
+        return CNPJProcessingResponse(
+            total_processed=1,
+            cnpjs=[{
+                "nome": razao_social,
+                "cnpj": cnpj_obj.cnpj,
+                "cnpj_formatado": CNPJService.format_cnpj(cnpj_obj.cnpj),
+                "razao_social": razao_social,
+                "municipio": municipio,
+                "old_id": cnpj_id,
+                "new_id": new_id,
+                "interaction_result": {
+                    "status": "queued",
+                    "message": f"CNPJ {CNPJService.format_cnpj(cnpj_obj.cnpj)} foi enviado para processamento"
+                },
+                "screenshots": []
+            }]
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJ: {str(e)}") 
