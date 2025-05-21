@@ -19,6 +19,7 @@ import time
 import random
 import argparse
 import sys
+import threading
 
 # Limitar a quantidade de workers simultâneos por instância do worker
 # Reduzir de 10 para 3 para evitar sobrecarga ao executar múltiplas instâncias
@@ -368,6 +369,39 @@ def connect_to_rabbitmq():
             print(f"Erro inesperado ao conectar ao RabbitMQ: {e}")
             return None, None
 
+def polling_reenfileira_pendentes(interval=60, limit=30):
+    """
+    Thread que periodicamente busca pendentes no banco e reenfileira no RabbitMQ
+    """
+    print(f"[Polling] Iniciando polling inteligente de pendentes a cada {interval}s...")
+    while True:
+        try:
+            # Conectar ao RabbitMQ (nova conexão para thread)
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+            channel = connection.channel()
+            channel.queue_declare(queue='fila_cnpj')
+
+            # Buscar pendentes no banco
+            pendentes = get_pending_tasks(limit=limit)
+            print(f"[Polling] Encontrados {len(pendentes)} pendentes no banco.")
+            for task in pendentes:
+                fila_id = task["id"]
+                # Só reenfileira se não estiver processando
+                if task.get("status") == "pendente":
+                    # Publica na fila
+                    channel.basic_publish(
+                        exchange='',
+                        routing_key='fila_cnpj',
+                        body=str(fila_id)
+                    )
+                    print(f"[Polling] Reenfileirou pendente ID {fila_id} no RabbitMQ.")
+                    # Marca como processando para evitar flood
+                    update_task_status(fila_id, "processando")
+            connection.close()
+        except Exception as e:
+            print(f"[Polling] Erro no polling de pendentes: {e}")
+        time.sleep(interval)
+
 def modo_batch(batchsize=30, workers=2):
     global WAIT_TIMES
     
@@ -468,14 +502,14 @@ def modo_batch(batchsize=30, workers=2):
 
 def modo_fila():
     print("Iniciando worker no modo fila...")
-    
+    # Iniciar polling inteligente em thread paralela
+    polling_thread = threading.Thread(target=polling_reenfileira_pendentes, args=(60, 30), daemon=True)
+    polling_thread.start()
     # Conectar ao RabbitMQ
     connection, channel = connect_to_rabbitmq()
-    
     if not connection or not channel:
         print("Falha ao conectar ao RabbitMQ. Encerrando worker.")
         return
-    
     try:
         # Bloquear e consumir mensagens da fila
         channel.start_consuming()
