@@ -270,48 +270,7 @@ const ConsultaPage = () => {
       const result = await reprocessarErros(textoErro, null, limite);
       setMessage(`${result.total_processed} CNPJs foram enviados para reprocessamento!`);
       
-      // Instead of reloading all data, update current list state
-      if (result.total_processed > 0) {
-        if (filters.status === 'erro') {
-          // If we're filtered to just errors, we might need to remove all items
-          // or only some based on text error filter
-          if (textoErro) {
-            // Filter out items that match the error text
-            const regex = new RegExp(textoErro, 'i');
-            allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(
-              item => !(item.status === 'erro' && item.resultado && regex.test(item.resultado))
-            );
-          } else {
-            // If no specific error text, all error items would be reprocessed
-            allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(
-              item => item.status !== 'erro'
-            );
-          }
-        } else {
-          // If we're showing all statuses, just remove the error ones that match filter
-          if (textoErro) {
-            const regex = new RegExp(textoErro, 'i');
-            allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(
-              item => !(item.status === 'erro' && item.resultado && regex.test(item.resultado))
-            );
-          } else {
-            // If no text filter, remove all error items
-            allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(
-              item => item.status !== 'erro'
-            );
-          }
-        }
-        
-        // Update stats
-        setStats(prev => ({
-          ...prev,
-          erros: Math.max(0, prev.erros - result.total_processed),
-          processando: prev.processando + result.total_processed
-        }));
-        
-        // Update displayed items
-        updateDisplayedItems();
-      }
+      loadCnpjs();
           // eslint-disable-next-line no-unused-vars
     } catch (_) {
       setError('Falha ao processar');
@@ -333,19 +292,8 @@ const ConsultaPage = () => {
       await reprocessarCnpjIndividual(id, true);
       setMessage(`CNPJ ${cnpj} enviado para reprocessamento!`);
       
-      // Instead of reloading all data, just remove this CNPJ from the current list
-      // Remove from the main data source
-      allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(item => item.id !== id);
-      
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        erros: Math.max(0, prev.erros - 1),
-        processando: prev.processando + 1
-      }));
-      
-      // Update the displayed items
-      updateDisplayedItems();
+      // Refresh all data instead of just updating in-memory
+      loadCnpjs();
           // eslint-disable-next-line no-unused-vars
     } catch (_) {
       setError('Falha ao processar');
@@ -644,34 +592,6 @@ const ConsultaPage = () => {
       }
       
       if (success) {
-        // Update data after successful deletion
-        
-        // Remove deleted items from the complete data list
-        const deletedIds = items.map(item => item.id);
-        allDataRef.current.cnpjs = allDataRef.current.cnpjs.filter(
-          item => !deletedIds.includes(item.id)
-        );
-        
-        // Update stats
-        if (allDataRef.current.cnpjs.length > 0) {
-          const newStats = {
-            total: allDataRef.current.cnpjs.length,
-            pendentes: allDataRef.current.cnpjs.filter(item => item.status === 'pendente').length,
-            processando: allDataRef.current.cnpjs.filter(item => item.status === 'processando').length,
-            concluidos: allDataRef.current.cnpjs.filter(item => item.status === 'concluido').length,
-            erros: allDataRef.current.cnpjs.filter(item => item.status === 'erro').length
-          };
-          setStats(newStats);
-        } else {
-          setStats({
-            total: 0,
-            pendentes: 0,
-            processando: 0,
-            concluidos: 0,
-            erros: 0
-          });
-        }
-        
         // Set success message - use API response message if available
         setMessage(
           responseMessage || 
@@ -683,8 +603,8 @@ const ConsultaPage = () => {
         // Clear selection
         setSelectedCnpjs([]);
         
-        // Update displayed items
-        updateDisplayedItems();
+        // Refresh all data instead of updating in-memory
+        loadCnpjs();
       } else {
         setError('Falha ao processar');
       }
