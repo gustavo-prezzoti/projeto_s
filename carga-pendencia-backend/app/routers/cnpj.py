@@ -802,34 +802,70 @@ async def reprocessar_erros_recriando(
         # Obter todos os CNPJs do usuário com status de erro
         all_cnpjs = get_all_cnpjs(user_id)
         
-        # Filtrar apenas os que têm status 'erro'
-        erros_rows = [row for row in all_cnpjs if row.get('status') == 'erro']
+        # Registrar no log para debug
+        print(f"Total de CNPJs encontrados: {len(all_cnpjs)}")
+        
+        # Filtrar apenas os que têm status 'erro' - garantindo comparação case-insensitive
+        erros_rows = [row for row in all_cnpjs if str(row.get('status', '')).lower() == 'erro']
+        print(f"CNPJs com status 'erro': {len(erros_rows)}")
         
         # Filtrar por texto de erro específico
         if texto_erro:
             erros_rows = [row for row in erros_rows if texto_erro.lower() in (row.get('resultado', '') or '').lower()]
+            print(f"CNPJs com texto de erro '{texto_erro}': {len(erros_rows)}")
         
-        # Filtrar por data
-        if dias:
-            data_limite = datetime.now() - timedelta(days=dias)
-            # Converter para string para comparação mais simples
-            data_limite_str = data_limite.strftime("%Y-%m-%d")
-            
-            # Filtrar resultados onde data_criacao é maior que data_limite
-            erros_rows = [
-                row for row in erros_rows 
-                if row.get('data_criacao') and str(row.get('data_criacao')).split('T')[0] >= data_limite_str
-            ]
+        # Filtrar por data - somente se o parâmetro dias for fornecido e maior que 0
+        if dias and dias > 0:
+            try:
+                from datetime import datetime, timedelta
+                
+                # Calcular data limite - considerando hoje como ponto de referência
+                data_limite = datetime.now() - timedelta(days=dias)
+                data_limite_str = data_limite.strftime("%Y-%m-%d")
+                print(f"Data limite: {data_limite_str}")
+                
+                # Lista temporária para armazenar registros filtrados por data
+                registros_apos_data = []
+                
+                for row in erros_rows:
+                    # Verificar se o registro tem data de criação
+                    if not row.get('data_criacao'):
+                        # Se não tiver data, incluir (melhor erro por excesso que por omissão)
+                        registros_apos_data.append(row)
+                        continue
+                    
+                    # Obter a data de criação como string
+                    data_str = str(row.get('data_criacao'))
+                    
+                    # Verificar o formato da data (pode ter 'T' como separador)
+                    if 'T' in data_str:
+                        data_str = data_str.split('T')[0]  # Pegar apenas a parte da data (YYYY-MM-DD)
+                    
+                    # Se a data de criação for posterior à data limite, incluir o registro
+                    if data_str >= data_limite_str:
+                        registros_apos_data.append(row)
+                
+                # Atualizar a lista de erros
+                erros_rows = registros_apos_data
+                print(f"CNPJs após filtro de data (dos últimos {dias} dias): {len(erros_rows)}")
+                
+            except Exception as date_error:
+                print(f"Erro ao filtrar por data: {date_error}")
+                # Se houver erro no filtro de data, continue com todos os registros
         
         # Limitar número de registros a processar
         if limite and len(erros_rows) > limite:
             erros_rows = erros_rows[:limite]
+            print(f"Limitando a {limite} registros")
         
         if not erros_rows:
+            print("Nenhum CNPJ encontrado para reprocessamento")
             return CNPJProcessingResponse(
                 total_processed=0,
                 cnpjs=[]
             )
+        
+        print(f"Total de CNPJs para reprocessamento: {len(erros_rows)}")
         
         # Armazenar IDs para exclusão
         ids_para_excluir = []
@@ -874,13 +910,20 @@ async def reprocessar_erros_recriando(
                     },
                     "screenshots": []
                 })
+                print(f"CNPJ {cnpj_str} reenfileirado com sucesso, novo ID: {new_id}")
             except Exception as item_error:
                 print(f"Erro ao processar item específico: {item_error}")
         
         # Excluir registros antigos
         for fila_id in ids_para_excluir:
-            delete_from_queue_by_id(fila_id, user_id)
-            print(f"Registro antigo {fila_id} excluído com sucesso")
+            try:
+                deleted = delete_from_queue_by_id(fila_id, user_id)
+                if deleted:
+                    print(f"Registro antigo {fila_id} excluído com sucesso")
+                else:
+                    print(f"Não foi possível excluir o registro {fila_id}")
+            except Exception as del_error:
+                print(f"Erro ao excluir registro {fila_id}: {str(del_error)}")
         
         return CNPJProcessingResponse(
             total_processed=len(cnpjs_processados),
@@ -888,6 +931,9 @@ async def reprocessar_erros_recriando(
         )
     
     except Exception as e:
+        import traceback
+        print(f"Erro ao reprocessar CNPJs com erro: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJs com erro: {str(e)}")
 
 @router.get("/reprocessar-cnpj-individual", response_model=CNPJProcessingResponse)
@@ -979,4 +1025,70 @@ async def reprocessar_cnpj_individual(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJ: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Erro ao reprocessar CNPJ: {str(e)}")
+
+@router.get("/listar-erros", response_model=List[ListCNPJResponse])
+async def listar_erros(current_user: dict = Depends(get_current_user)):
+    """
+    Lista todos os CNPJs do usuário atual que têm status 'erro'
+    """
+    try:
+        # Obter todos os CNPJs do usuário atual
+        cnpjs = get_all_cnpjs(user_id=current_user.get("user_id"))
+        
+        # Filtrar apenas os que têm status 'erro'
+        erros = [item for item in cnpjs if item.get('status') == 'erro']
+        
+        print(f"Encontrados {len(erros)} CNPJs com status 'erro'")
+        
+        return erros
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao listar CNPJs com erro: {str(e)}"
+        )
+
+@router.get("/debug-reprocessar-erros")
+async def debug_reprocessar_erros(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Endpoint de diagnóstico para verificar por que o reprocessamento não está funcionando
+    """
+    try:
+        # Obter user_id do token
+        user_id = current_user.get("user_id")
+        
+        # Obter todos os CNPJs do usuário
+        all_cnpjs = get_all_cnpjs(user_id)
+        
+        # Contar por status
+        status_counts = {}
+        for item in all_cnpjs:
+            status = item.get('status', 'unknown')
+            if status in status_counts:
+                status_counts[status] += 1
+            else:
+                status_counts[status] = 1
+        
+        # Verificar se há CNPJs com status 'erro'
+        erros_rows = [row for row in all_cnpjs if row.get('status') == 'erro']
+        
+        # Ver datas dos erros
+        datas = []
+        for row in erros_rows[:5]:  # Mostrar até 5 exemplos
+            if 'data_criacao' in row and row['data_criacao']:
+                datas.append(str(row['data_criacao']))
+        
+        return {
+            "total_cnpjs": len(all_cnpjs),
+            "status_counts": status_counts,
+            "erros_encontrados": len(erros_rows),
+            "exemplos_datas": datas,
+            "user_id": user_id
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        } 
