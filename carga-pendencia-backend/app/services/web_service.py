@@ -1783,6 +1783,9 @@ class WebService:
                                     ):
                                         status_divida = "Exigibilidade suspensa"
                                     # Se não tem "não constam" mas tem "constam", então constam dívidas
+                      
+                      
+                      
                                     elif padrao_constam.search(
                                         texto_para_analise
                                     ):

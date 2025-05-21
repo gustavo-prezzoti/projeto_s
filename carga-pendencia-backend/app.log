@@ -633,3 +633,5 @@
 2025-05-21 13:50:20,810 - httpx - INFO - HTTP Request: GET https://tvcnimbrqzimfggfhqst.supabase.co/rest/v1/fila_cnpj?select=%2A&user_id=eq.1 "HTTP/2 200 OK"
 2025-05-21 13:50:28,158 - httpx - INFO - HTTP Request: GET https://tvcnimbrqzimfggfhqst.supabase.co/rest/v1/fila_cnpj?select=%2A&user_id=eq.1 "HTTP/2 200 OK"
 2025-05-21 13:50:30,121 - httpx - INFO - HTTP Request: GET https://tvcnimbrqzimfggfhqst.supabase.co/rest/v1/fila_cnpj?select=%2A&user_id=eq.1 "HTTP/2 200 OK"
+2025-05-21 13:51:15,467 - root - INFO - Cleaning up Chrome processes...
+2025-05-21 13:51:16,761 - root - INFO - Chrome process cleanup completed
