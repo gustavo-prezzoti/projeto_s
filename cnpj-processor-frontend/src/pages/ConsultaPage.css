@@ -428,49 +428,35 @@ h2 {
   margin-bottom: 1rem;
 }
 
-.auto-refresh {
+.manual-refresh {
   display: flex;
   align-items: center;
 }
 
-.auto-refresh label {
+.btn-refresh {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.auto-refresh input[type="checkbox"] {
-  margin: 0;
+.btn-refresh:hover:not(:disabled) {
+  background-color: #1557b0;
+  transform: translateY(-1px);
 }
 
-/* Indicador de atualização automática */
-.auto-refresh-indicator {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  background-color: rgba(26, 115, 232, 0.9);
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
-  animation: pulse 2s infinite;
+.btn-refresh:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
-@keyframes pulse {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.6;
-  }
-}
+/* Removed auto-refresh indicator styles */
 
 /* Cabeçalho da lista com botão de atualização */
 .list-header {

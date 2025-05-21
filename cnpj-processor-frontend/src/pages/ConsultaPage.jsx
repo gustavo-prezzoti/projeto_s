@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { consultarCnpjs, reprocessarErros, reprocessarCnpjIndividual, deletarCnpj, deletarCnpjsEmLote } from '../services/api';
-import api from '../services/api';
 import { FiRefreshCw, FiFilter, FiX, FiSearch, FiAlertCircle, FiCheckCircle, FiFileText, FiChevronDown, FiTrash2 } from 'react-icons/fi';
 import './ConsultaPage.css';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -25,10 +24,10 @@ const ConsultaPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     status: '',
-    textoErro: ''
+    textoErro: '',
+    tipoPendencia: ''
   });
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const autoRefreshIntervalRef = useRef(null);
+  // Removed automatic refresh state
   const tableRef = useRef(null);
   const itemsPerPage = 10;
   const [batchReprocessConfig, setBatchReprocessConfig] = useState({
@@ -53,25 +52,29 @@ const ConsultaPage = () => {
     currentFilters: {}
   });
 
+  // Função para normalizar texto para comparação inteligente
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text
+      .toLowerCase()
+      // Remover acentos
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      // Remover caracteres especiais e espaços extras
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, '');
+  };
+  
+  // Função para verificar se um texto contém outro de forma inteligente
+  const smartTextIncludes = (source, search) => {
+    if (!source || !search) return false;
+    return normalizeText(source).includes(normalizeText(search));
+  };
+
   useEffect(() => {
     // Carregar CNPJs na inicialização
     loadCnpjs();
-    
-    // Configurar intervalo de atualização automática
-    if (autoRefresh) {
-      autoRefreshIntervalRef.current = setInterval(() => {
-        // Atualizar silenciosamente sem mostrar o indicador de carregamento
-        refreshCnpjsSilently();
-      }, 5000); // 5 segundos
-    }
-    
-    // Cleanup na desmontagem do componente
-    return () => {
-      if (autoRefreshIntervalRef.current) {
-        clearInterval(autoRefreshIntervalRef.current);
-      }
-    };
-  }, [autoRefresh, filters]); // Adicionar filters como dependência
+  }, [filters]); // Atualizar quando os filtros mudarem
 
   // Update displayed items when page changes
   useEffect(() => {
@@ -138,15 +141,14 @@ const ConsultaPage = () => {
       // Filtragem no cliente para garantir match em qualquer posição se o backend não suportar
       let filteredCnpjs = [...data];
       
-      // Se houver filtro de texto, filtrar localmente garantindo que o match seja em qualquer posição
+      // Se houver filtro de texto, filtrar localmente usando comparação inteligente
       if (filters.textoErro) {
-        const searchTerm = filters.textoErro.toLowerCase();
         filteredCnpjs = filteredCnpjs.filter(cnpj => {
           return (
-            (cnpj.resultado?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.razao_social?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.municipio?.toLowerCase().includes(searchTerm))
+            smartTextIncludes(cnpj.resultado, filters.textoErro) ||
+            smartTextIncludes(cnpj.razao_social, filters.textoErro) ||
+            smartTextIncludes(cnpj.cnpj, filters.textoErro) ||
+            smartTextIncludes(cnpj.municipio, filters.textoErro)
           );
         });
       }
@@ -154,6 +156,23 @@ const ConsultaPage = () => {
       // Aplicar filtro de status se existir
       if (filters.status) {
         filteredCnpjs = filteredCnpjs.filter(cnpj => cnpj.status === filters.status);
+      }
+      
+      // Aplicar filtro de tipo de pendência se existir
+      if (filters.tipoPendencia) {
+        filteredCnpjs = filteredCnpjs.filter(cnpj => {
+          const resultado = cnpj.resultado?.toLowerCase() || '';
+          switch (filters.tipoPendencia) {
+            case 'constam-dividas':
+              return resultado.includes('constam dívidas') || resultado.includes('constam dividas');
+            case 'nao-constam-pendencias':
+              return resultado.includes('não constam pendências') || resultado.includes('nao constam pendencias');
+            case 'exigibilidade-suspensa':
+              return resultado.includes('exigibilidade suspensa');
+            default:
+              return true;
+          }
+        });
       }
       
       // Store complete data in ref
@@ -190,73 +209,7 @@ const ConsultaPage = () => {
     }
   };
 
-  // Atualização silenciosa sem mostrar indicador de carregamento
-  const refreshCnpjsSilently = async () => {
-    try {
-      const filterParams = {
-        ...filters,
-      };
-      
-      // Remover parâmetros vazios
-      Object.keys(filterParams).forEach(key => 
-        !filterParams[key] && delete filterParams[key]
-      );
-      
-      // Adicionar parâmetro para indicar que a busca deve ser por qualquer posição
-      if (filterParams.textoErro) {
-        filterParams.matchAnywhere = true;
-      }
-      
-      const response = await consultarCnpjs(filterParams);
-      
-      // Verificar se a resposta é um array (nova API) ou um objeto com propriedade 'cnpjs' (API antiga)
-      const data = Array.isArray(response) ? response : (response.cnpjs || []);
-      
-      // Filtragem no cliente para garantir match em qualquer posição se o backend não suportar
-      let filteredCnpjs = [...data];
-      
-      // Se houver filtro de texto, filtrar localmente garantindo que o match seja em qualquer posição
-      if (filters.textoErro) {
-        const searchTerm = filters.textoErro.toLowerCase();
-        filteredCnpjs = filteredCnpjs.filter(cnpj => {
-          return (
-            (cnpj.resultado?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.razao_social?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.cnpj?.toLowerCase().includes(searchTerm)) ||
-            (cnpj.municipio?.toLowerCase().includes(searchTerm))
-          );
-        });
-      }
-
-      // Aplicar filtro de status se existir
-      if (filters.status) {
-        filteredCnpjs = filteredCnpjs.filter(cnpj => cnpj.status === filters.status);
-      }
-      
-      // Store complete data in ref
-      allDataRef.current = {
-        cnpjs: filteredCnpjs,
-        currentFilters: {...filters}
-      };
-      
-      // Calcular estatísticas com base nos dados filtrados
-      const stats = {
-        total: filteredCnpjs.length,
-        pendentes: filteredCnpjs.filter(item => item.status === 'pendente').length,
-        processando: filteredCnpjs.filter(item => item.status === 'processando').length,
-        concluidos: filteredCnpjs.filter(item => item.status === 'concluido').length,
-        erros: filteredCnpjs.filter(item => item.status === 'erro').length
-      };
-      
-      setStats(stats);
-      
-      // Update displayed items based on current page
-      updateDisplayedItems();
-      
-    } catch (error) {
-      console.error('Erro na atualização automática:', error);
-    }
-  };
+  // Removed silent refresh function - using manual refresh button instead
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -280,7 +233,8 @@ const ConsultaPage = () => {
     setFilterLoading(true);
     setFilters({
       status: '',
-      textoErro: ''
+      textoErro: '',
+      tipoPendencia: ''
     });
     
     // Aplicar filtros limpos imediatamente
@@ -289,15 +243,12 @@ const ConsultaPage = () => {
     });
   };
   
-  const toggleAutoRefresh = () => {
-    // Se estiver desligando o auto-refresh, limpar o intervalo
-    if (autoRefresh && autoRefreshIntervalRef.current) {
-      clearInterval(autoRefreshIntervalRef.current);
-      autoRefreshIntervalRef.current = null;
-    }
-    
-    // Alternar estado
-    setAutoRefresh(!autoRefresh);
+  // Manual refresh function
+  const handleManualRefresh = () => {
+    setLoading(true);
+    loadCnpjs().finally(() => {
+      setLoading(false);
+    });
   };
 
   const handleReprocessAll = async (customOptions = {}) => {
@@ -777,16 +728,16 @@ const ConsultaPage = () => {
       <div className="filter-container">
         <div className="filter-header">
           <h2><FiFilter /> Filtros</h2>
-          <div className="auto-refresh">
-            <label htmlFor="autoRefresh">
-              <input 
-                type="checkbox" 
-                id="autoRefresh" 
-                checked={autoRefresh} 
-                onChange={toggleAutoRefresh} 
-              />
-              Atualização automática ({autoRefresh ? "Ativada" : "Desativada"})
-            </label>
+          <div className="manual-refresh">
+            <button 
+              type="button" 
+              className="btn btn-refresh" 
+              onClick={handleManualRefresh}
+              disabled={loading}
+            >
+              <FiRefreshCw className={loading ? 'spinning' : ''} /> 
+              {loading ? 'Atualizando...' : 'Atualizar Dados'}
+            </button>
           </div>
         </div>
         <form onSubmit={applyFilters}>
@@ -804,6 +755,21 @@ const ConsultaPage = () => {
                 <option value="processando">Processando</option>
                 <option value="concluido">Concluído</option>
                 <option value="erro">Erro</option>
+              </select>
+            </div>
+            
+            <div className="filter-group">
+              <label htmlFor="tipoPendencia">Tipo Pendência</label>
+              <select 
+                id="tipoPendencia" 
+                name="tipoPendencia" 
+                value={filters.tipoPendencia} 
+                onChange={handleFilterChange}
+              >
+                <option value="">Todos</option>
+                <option value="constam-dividas">Constam dívidas</option>
+                <option value="nao-constam-pendencias">Não constam pendências</option>
+                <option value="exigibilidade-suspensa">Exigibilidade suspensa</option>
               </select>
             </div>
             

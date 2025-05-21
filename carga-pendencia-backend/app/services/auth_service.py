@@ -1,11 +1,15 @@
 import jwt
 from datetime import datetime, timedelta
-import mysql.connector
 import os
 import hashlib
 from typing import Optional, Dict, Any
 
-from app.services.queue_service import MYSQL_HOST
+from app.database.config import (
+    verify_user as supabase_verify_user,
+    register_user as supabase_register_user,
+    get_user_by_id,
+    count_users
+)
 
 # Definir chave secreta para JWT
 # Em produção, isso deve ser armazenado em uma variável de ambiente
@@ -69,37 +73,15 @@ def verify_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     Returns:
         Dados do usuário se as credenciais forem válidas, None caso contrário
     """
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user="root",
-            password="root",
-            database="relatorio_pendencia"
-        )
-        cursor = conn.cursor(dictionary=True)
+        # Hash da senha
+        password_hash = hash_password(password)
         
-        # Consultar usuário pelo username
-        cursor.execute(
-            "SELECT * FROM usuarios WHERE username = %s",
-            (username,)
-        )
-        user = cursor.fetchone()
-        
-        # Verificar se o usuário existe e a senha está correta
-        if user and user["password"] == hash_password(password):
-            return user
-        
-        return None
+        # Verificar usuário no Supabase
+        return supabase_verify_user(username, password_hash)
     except Exception as e:
         print(f"Erro ao verificar usuário: {str(e)}")
         return None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def register_user(username: str, password: str, nome: Optional[str] = None, email: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
@@ -114,56 +96,23 @@ def register_user(username: str, password: str, nome: Optional[str] = None, emai
     Returns:
         Dados do usuário registrado ou None em caso de erro
     """
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user="root",
-            password="root",
-            database="relatorio_pendencia"
-        )
-        cursor = conn.cursor(dictionary=True)
-        
-        # Verificar se o username já existe
-        cursor.execute(
-            "SELECT id FROM usuarios WHERE username = %s",
-            (username,)
-        )
-        existing_user = cursor.fetchone()
-        
-        if existing_user:
-            print(f"Usuário {username} já existe")
-            return None
-        
         # Hash da senha
         hashed_password = hash_password(password)
         
-        # Inserir novo usuário
-        cursor.execute(
-            "INSERT INTO usuarios (username, password, nome, email) VALUES (%s, %s, %s, %s)",
-            (username, hashed_password, nome, email)
-        )
-        conn.commit()
-        
-        # Obter o ID do usuário recém-inserido
-        user_id = cursor.lastrowid
-        
-        # Retornar os dados do usuário
-        return {
-            "id": user_id,
+        # Preparar dados do usuário
+        user_data = {
             "username": username,
+            "password": hashed_password,
             "nome": nome,
             "email": email
         }
+        
+        # Registrar usuário no Supabase
+        return supabase_register_user(user_data)
     except Exception as e:
         print(f"Erro ao registrar usuário: {str(e)}")
         return None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def get_current_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     """
@@ -175,33 +124,11 @@ def get_current_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     Returns:
         Dados do usuário ou None se não encontrado
     """
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user="root",
-            password="root",
-            database="relatorio_pendencia"
-        )
-        cursor = conn.cursor(dictionary=True)
-        
-        # Consultar usuário pelo ID
-        cursor.execute(
-            "SELECT id, username, nome, email FROM usuarios WHERE id = %s",
-            (user_id,)
-        )
-        user = cursor.fetchone()
-        
-        return user
+        return get_user_by_id(user_id)
     except Exception as e:
         print(f"Erro ao obter dados do usuário: {str(e)}")
         return None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def is_first_user() -> bool:
     """
@@ -210,29 +137,13 @@ def is_first_user() -> bool:
     Returns:
         True se não existem usuários, False caso contrário
     """
-    conn = None
-    cursor = None
     try:
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user="root",
-            password="root",
-            database="relatorio_pendencia"
-        )
-        cursor = conn.cursor(dictionary=True)
-        
-        # Contar usuários
-        cursor.execute("SELECT COUNT(*) as count FROM usuarios")
-        result = cursor.fetchone()
+        # Contar usuários no Supabase
+        user_count = count_users()
         
         # Se não houver usuários, é o primeiro
-        return result['count'] == 0
+        return user_count == 0
     except Exception as e:
         print(f"Erro ao verificar se é primeiro usuário: {str(e)}")
         # Em caso de erro, assume que não é o primeiro usuário (segurança)
-        return False
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close() 
+        return False 

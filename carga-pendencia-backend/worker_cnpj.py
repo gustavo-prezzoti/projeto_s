@@ -1,9 +1,12 @@
 import pika
-import mysql.connector
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from app.models.cnpj import CNPJ
 from app.services.cnpj_service import CNPJService
+from app.database.config import (
+    get_supabase_client,
+    update_queue_item
+)
 import os
 import glob
 import subprocess
@@ -60,72 +63,110 @@ def is_docker_container_name_resolvable(container_name):
         return False
 
 # Determinar os hosts baseados no ambiente
-MYSQL_HOST = "mysql-cnpj" if is_docker_container_name_resolvable("mysql-cnpj") else "localhost"
 RABBITMQ_HOST = "rabbitmq-cnpj" if is_docker_container_name_resolvable("rabbitmq-cnpj") else "localhost"
 
 # Variável global para armazenar tempos de espera
 WAIT_TIMES = calculate_wait_time(20)  # Valor padrão inicial
 
-print(f"Usando MySQL em: {MYSQL_HOST}")
 print(f"Usando RabbitMQ em: {RABBITMQ_HOST}")
 print(f"Tempos de espera iniciais: {WAIT_TIMES}")
 
-# Configuração de conexão do MySQL com timeout e retry
-def get_db_connection():
-    retry_attempts = 3
-    for attempt in range(retry_attempts):
-        try:
-            return mysql.connector.connect(
-                host=MYSQL_HOST,
-                user="root",
-                password="root",
-                database="relatorio_pendencia",
-                connection_timeout=30,
-                autocommit=False
-            )
-        except mysql.connector.Error as err:
-            if attempt < retry_attempts - 1:
-                print(f"Erro ao conectar ao MySQL (tentativa {attempt+1}): {err}")
-                time.sleep(random.uniform(1, 3))  # Backoff aleatório
-            else:
-                raise
+# Lista de tarefas ignoradas (local)
+ignored_tasks = set()
+
+def should_ignore_task(fila_id):
+    """
+    Verifica se uma tarefa deve ser ignorada
+    
+    Args:
+        fila_id: ID da tarefa na fila
+        
+    Returns:
+        True se a tarefa deve ser ignorada, False caso contrário
+    """
+    return fila_id in ignored_tasks
+
+def add_to_ignore_list(fila_id):
+    """
+    Adiciona uma tarefa à lista de ignorados
+    
+    Args:
+        fila_id: ID da tarefa na fila
+    """
+    ignored_tasks.add(fila_id)
+
+def get_pending_tasks(limit=50):
+    """
+    Obtém tarefas pendentes do banco de dados
+    
+    Args:
+        limit: Limite de tarefas a retornar
+        
+    Returns:
+        Lista de tarefas pendentes
+    """
+    try:
+        supabase = get_supabase_client()
+        response = supabase.table("fila_cnpj").select("*").eq("status", "pendente").limit(limit).execute()
+        
+        if response.data:
+            return response.data
+        return []
+    except Exception as e:
+        print(f"[ERRO] Erro ao obter tarefas pendentes: {e}")
+        return []
+
+def update_task_status(fila_id, status, resultado=None, status_divida=None, pdf_path=None, full_result=None):
+    """
+    Atualiza o status de uma tarefa no banco de dados
+    
+    Args:
+        fila_id: ID da tarefa na fila
+        status: Novo status (pendente, processando, concluido, erro, ignorado)
+        resultado: Resultado do processamento (opcional)
+        status_divida: Status da dívida (opcional)
+        pdf_path: Caminho para o PDF (opcional)
+        full_result: Resultado completo (opcional)
+        
+    Returns:
+        True se a atualização foi bem-sucedida, False caso contrário
+    """
+    try:
+        update_data = {"status": status}
+        
+        if resultado is not None:
+            update_data["resultado"] = resultado
+            
+        if status_divida is not None:
+            update_data["status_divida"] = status_divida
+            
+        if pdf_path is not None:
+            update_data["pdf_path"] = pdf_path
+            
+        if full_result is not None:
+            update_data["full_result"] = full_result
+            
+        # Atualizar no banco
+        return update_queue_item(fila_id, update_data)
+    except Exception as e:
+        print(f"[ERRO] Erro ao atualizar status da tarefa {fila_id}: {e}")
+        return False
 
 def verificar_tarefas_pendentes_lote(limit=50):
     print(f"[LOG] Chamando verificar_tarefas_pendentes_lote com limit={limit}")
-    conn = None
-    cursor = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        print("[LOG] Conexão com o banco obtida com sucesso.")
-        cursor.execute("SELECT id FROM fila_cnpj WHERE status = 'pendente' LIMIT %s", (limit,))
-        tarefas = cursor.fetchall()
-        print(f"[LOG] Resultado do SELECT pendentes: {tarefas}")
-        if not tarefas:
+        print("[LOG] Buscando tarefas pendentes no Supabase")
+        tasks = get_pending_tasks(limit)
+        print(f"[LOG] Encontradas {len(tasks)} tarefas pendentes")
+        
+        if not tasks:
             print("[LOG] Nenhuma tarefa pendente encontrada.")
             return []
-        ids = [t['id'] for t in tarefas]
-        print(f"[LOG] IDs encontrados: {ids}")
-        if ids:
-            id_placeholders = ', '.join(['%s'] * len(ids))
-            print(f"[LOG] Atualizando status para 'processando' para os IDs: {ids}")
-            cursor.execute(f"UPDATE fila_cnpj SET status = 'processando' WHERE id IN ({id_placeholders})", ids)
-            conn.commit()
-            print(f"[LOG] Tarefas marcadas como processando: {ids}")
-        return ids
+            
+        return [task["id"] for task in tasks]
     except Exception as e:
         print(f"[ERRO] Erro ao verificar tarefas pendentes em lote: {e}")
-        if conn:
-            try:
-                conn.rollback()
-            except:
-                pass
         return []
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 def process_cnpj_on_website_sync(args, headless=True):
     cnpj_obj, fila_id = args
@@ -155,29 +196,27 @@ def process_cnpj_on_website_sync(args, headless=True):
         }
 
 def processa_cnpj(fila_id):
-    conn = None
-    cursor = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        
         # Verificar se a tarefa ainda precisa ser processada (poderia ter sido pega por outro worker)
-        cursor.execute("SELECT * FROM fila_cnpj WHERE id = %s AND status = 'processando'", (fila_id,))
-        row = cursor.fetchone()
-        if not row:
+        task = get_task_by_id(fila_id)
+        if not task or task.get("status") != "processando":
             print(f"Tarefa {fila_id} não encontrada ou não está em processamento. Ignorando.")
-            if cursor: cursor.close()
-            if conn: conn.close()
+            return
+
+        # Verificar se a tarefa está na lista de ignorados
+        if should_ignore_task(fila_id):
+            print(f"Tarefa {fila_id} na lista de ignorados. Ignorando processamento.")
+            update_task_status(fila_id, "ignorado", "Tarefa ignorada pelo worker")
             return
 
         # Criar objeto CNPJ com todos os campos disponíveis
         cnpj_obj = CNPJ(
-            cnpj=row['cnpj'],
-            razao_social=row.get('razao_social') or "",
-            municipio=row.get('municipio') or ""
+            cnpj=task['cnpj'],
+            razao_social=task.get('razao_social') or "",
+            municipio=task.get('municipio') or ""
         )
         # Garantir que headless=True
-        print(f"Processando CNPJ {row['cnpj']} com headless=True (fila_id={fila_id})")
+        print(f"Processando CNPJ {task['cnpj']} com headless=True (fila_id={fila_id})")
         result = process_cnpj_on_website_sync((cnpj_obj, fila_id), headless=True)
         print(f"==== RESULTADO DO WEBSERVICE (fila_id={fila_id}) ====")
         print(result)
@@ -198,256 +237,293 @@ def processa_cnpj(fila_id):
                 resultado = result.get("resultado")
             elif result.get("status_divida"):
                 resultado = result.get("status_divida")
-            elif result.get("texto_completo"):
-                resultado = result.get("texto_completo")[:1000]
             else:
-                resultado = "Processado com sucesso, mas sem texto específico"
+                resultado = "Processado com sucesso, sem retorno específico"
+            
+            if not resultado:
+                resultado = "Resultado vazio"
+            
+            if len(resultado) > 2000:
+                resultado = resultado[:1997] + "..."
+                
             full_result = result.get("full_result", "")
-            print(f"Resultado final que será salvo no banco para fila_id={fila_id}: {resultado[:100]}...")
         else:
             status = "erro"
-            erro_detalhes = ""
-            if result.get("message"):
-                erro_detalhes = f" - {result.get('message')}"
-            if result.get("texto_completo"):
-                erro_parcial = result.get("texto_completo", "")[:100]
-                resultado = f"[ERRO] Texto capturado, mas não foi possível determinar o status (pendência/não pendência){erro_detalhes}. Texto parcial: {erro_parcial}..."
-            else:
-                resultado = f"[ERRO] Texto não encontrado ou não retornado pelo WebService{erro_detalhes}"
-            full_result = result.get("full_result", "")
-        if resultado is None:
-            resultado = "[ERRO] Resultado vazio"
-        if full_result is None:
-            full_result = ""
-        print(f"[LOG] Atualizando fila_cnpj id={fila_id} com status='{status}'")
-        cursor.execute(
-            "UPDATE fila_cnpj SET status = %s, resultado = %s, full_result = %s WHERE id = %s",
-            (status, resultado, full_result, fila_id)
+            resultado = "[ERRO] Status desconhecido retornado pelo WebService"
+            full_result = str(result)
+            
+        # Atualizar status da tarefa no banco
+        status_divida = result.get("status_divida") if result else None
+        pdf_path = next(iter(result.get("screenshots", [])), None) if result else None
+            
+        update_task_status(
+            fila_id, 
+            status, 
+            resultado, 
+            status_divida, 
+            pdf_path, 
+            full_result
         )
-        conn.commit()
-        print(f"[LOG] UPDATE executado e commit realizado para id={fila_id}")
-        
+            
+        print(f"CNPJ {task['cnpj']} processado com status: {status}")
     except Exception as e:
-        print(f"[ERRO] Exceção inesperada no worker para fila_id={fila_id}: {e}")
+        print(f"[ERRO] Erro ao processar CNPJ de fila_id={fila_id}: {e}")
         print(traceback.format_exc())
-        
-        # Tentar atualizar o status para erro caso tenha ocorrido um problema
         try:
-            if conn and cursor:
-                cursor.execute(
-                    "UPDATE fila_cnpj SET status = %s, resultado = %s WHERE id = %s", 
-                    ("erro", f"[ERRO] Exceção no worker: {str(e)}", fila_id)
-                )
-                conn.commit()
-        except Exception as update_err:
-            print(f"[ERRO] Não foi possível atualizar status para erro: {update_err}")
-    finally:
-        # Garantir que conexões sejam fechadas
-        if cursor:
-            try:
-                cursor.close()
-            except:
-                pass
-        if conn:
-            try:
-                conn.close()
-            except:
-                pass
+            # Tentativa final de marcar como erro no banco
+            update_task_status(
+                fila_id, 
+                "erro", 
+                f"[ERRO] Exceção no processamento: {str(e)}", 
+                None, 
+                None, 
+                traceback.format_exc()
+            )
+        except Exception as update_error:
+            print(f"[ERRO FATAL] Não foi possível atualizar status da tarefa no banco: {update_error}")
 
 def callback(ch, method, properties, body):
-    """Callback para processar mensagens da fila"""
-    fila_id = body.decode('utf-8').strip()
-    print(f"Recebido ID {fila_id} da fila")
-    
-    # Verificar se este ID está na lista de ignorados
-    connection = None
-    channel = None
     try:
-        # Conectar ao RabbitMQ para verificar a fila de ignorados
-        connection = pika.BlockingConnection(pika.ConnectionParameters(RABBITMQ_HOST))
-        channel = connection.channel()
-        # Declarar a fila de ignorados se não existir
-        channel.queue_declare(queue='fila_cnpj_ignorados', durable=True)
+        fila_id = int(body.decode())
+        print(f" [x] Recebido {fila_id}")
         
-        # Tentar obter uma mensagem da fila de ignorados sem consumir
-        method_frame, header_frame, body_ignorado = channel.basic_get(
-            queue='fila_cnpj_ignorados',
-            auto_ack=False
-        )
-        
-        # Se existe alguma mensagem e é o ID atual
-        if method_frame and body_ignorado and body_ignorado.decode('utf-8').strip() == fila_id:
-            print(f"ID {fila_id} está na lista de ignorados. Pulando processamento.")
-            # Confirmar consumo desta mensagem da fila de ignorados
-            channel.basic_ack(delivery_tag=method_frame.delivery_tag)
-            # Confirmar consumo da mensagem original
+        # Verificar se a tarefa está na lista de ignorados
+        if should_ignore_task(fila_id):
+            print(f"Tarefa {fila_id} na lista de ignorados. Ignorando processamento e confirmando recebimento.")
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
-    except Exception as e:
-        print(f"Erro ao verificar fila de ignorados: {str(e)}")
-    finally:
-        if connection and connection.is_open:
-            connection.close()
-
-    def task():
-        """Tarefa para processar o ID"""
-        try:
-            processa_cnpj(fila_id)
+            
+        # Verifica se o fila_id existe e está com status 'pendente' ou 'processando'
+        task = get_task_by_id(fila_id)
+        if not task or (task.get("status") != "pendente" and task.get("status") != "processando"):
+            print(f"Tarefa {fila_id} não encontrada, não está pendente ou não está em processamento. Confirmando recebimento.")
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            print(f"Processamento de {fila_id} concluído e confirmado!")
-        except Exception as e:
-            print(f"Erro no processamento de {fila_id}: {str(e)}")
-            print(traceback.format_exc())
-            # Se ocorrer erro, tentar confirmar recebimento mesmo assim para evitar loop
+            return
+            
+        # Atualizar status para 'processando' se estiver 'pendente'
+        if task.get("status") == "pendente":
+            update_task_status(fila_id, "processando")
+            
+        def task():
             try:
+                processa_cnpj(fila_id)
                 ch.basic_ack(delivery_tag=method.delivery_tag)
-                print(f"Mensagem {fila_id} confirmada após erro!")
-            except:
-                print(f"Não foi possível confirmar a mensagem {fila_id} após erro.")
-
-    # Submeter à thread pool para processamento paralelo
-    executor.submit(task)
-
-# Conectar com retentativas e backoff exponencial
-def connect_to_rabbitmq():
-    max_retries = 5
-    retry_count = 0
-    connection = None
-    
-    while retry_count < max_retries and connection is None:
+            except Exception as e:
+                print(f"[ERRO] Thread de processamento falhou para fila_id={fila_id}: {str(e)}")
+                # Mesmo com falha, confirma o recebimento para não reprocessar
+                try:
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                except Exception as ack_error:
+                    print(f"[ERRO] Falha ao confirmar recebimento para fila_id={fila_id}: {str(ack_error)}")
+                # Tentar marcar como erro no banco
+                try:
+                    update_task_status(
+                        fila_id, 
+                        "erro", 
+                        f"[ERRO CRÍTICO] Falha na thread de processamento: {str(e)}"
+                    )
+                except Exception as db_error:
+                    print(f"[ERRO FATAL] Falha ao atualizar status para erro no banco para fila_id={fila_id}: {str(db_error)}")
+        
+        # Executa o processamento em uma thread separada
+        executor.submit(task)
+        
+    except Exception as e:
+        print(f"[ERRO] Callback falhou: {str(e)}")
         try:
-            print(f"Tentando conectar ao RabbitMQ em {RABBITMQ_HOST} (tentativa {retry_count+1}/{max_retries})...")
-            connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host=RABBITMQ_HOST,
-                connection_attempts=3,
-                retry_delay=5,
-                heartbeat=600  # Heartbeat a cada 10 minutos para manter conexão viva
-            ))
-            print("Conexão com RabbitMQ estabelecida com sucesso!")
-            return connection
-        except Exception as e:
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except Exception as ack_error:
+            print(f"[ERRO] Falha ao confirmar recebimento após erro: {str(ack_error)}")
+
+def connect_to_rabbitmq():
+    retry_count = 0
+    max_retries = 10
+    retry_delay = 5
+    
+    while retry_count < max_retries:
+        try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
+            channel = connection.channel()
+            channel.queue_declare(queue='fila_cnpj')
+            channel.queue_declare(queue='fila_cnpj_ignorados', durable=True)
+            channel.basic_qos(prefetch_count=10)  # Aumentar o prefetch para melhor throughput
+            
+            # Consumir mensagens da fila
+            channel.basic_consume(queue='fila_cnpj', on_message_callback=callback)
+            
+            print(' [*] Aguardando mensagens. Para sair pressione CTRL+C')
+            
+            # Retornar os objetos de conexão
+            return connection, channel
+        except pika.exceptions.AMQPConnectionError as e:
             retry_count += 1
-            print(f"Erro ao conectar ao RabbitMQ: {str(e)}")
-            if retry_count >= max_retries:
-                raise Exception(f"Falha ao conectar ao RabbitMQ após {max_retries} tentativas")
-            sleep_time = 5 * (2 ** (retry_count - 1))  # Backoff exponencial
-            print(f"Tentando novamente em {sleep_time} segundos...")
-            time.sleep(sleep_time)
+            if retry_count < max_retries:
+                print(f"Erro ao conectar ao RabbitMQ: {e}. Tentando novamente em {retry_delay} segundos...")
+                time.sleep(retry_delay)
+                retry_delay = min(retry_delay * 1.5, 60)  # Exponential backoff com limite
+            else:
+                print(f"Falha ao conectar ao RabbitMQ após {max_retries} tentativas: {e}")
+                return None, None
+        except Exception as e:
+            print(f"Erro inesperado ao conectar ao RabbitMQ: {e}")
+            return None, None
 
 def modo_batch(batchsize=30, workers=2):
-    """
-    Processa CNPJs em lotes (modo batch) sem usar RabbitMQ
+    global WAIT_TIMES
     
-    Args:
-        batchsize: Tamanho máximo de cada lote (padrão: 30)
-        workers: Número de workers paralelos (padrão: 2)
-    """
-    print("[LOG] Entrou no modo_batch")
-    global executor, WAIT_TIMES
-    
-    # Limitar workers para 2 para evitar sobrecarga
-    workers = min(workers, 2)
-    
-    # Ajustar batchsize se excessivamente grande
-    batchsize = min(batchsize, 50)
-    
-    executor = ThreadPoolExecutor(max_workers=workers)
+    # Ajustar os tempos de espera com base no tamanho do batch
     WAIT_TIMES = calculate_wait_time(batchsize)
-    print(f"[LOG] Tempos de espera configurados para batch size {batchsize}: {WAIT_TIMES}")
-    print(f"[LOG] Usando {workers} workers paralelos")
+    print(f"Modo batch configurado com batchsize={batchsize}, workers={workers}")
+    print(f"Tempos de espera ajustados: {WAIT_TIMES}")
     
-    # Controle da carga de trabalho
-    ciclos_sem_tarefas = 0
-    max_ciclos_sem_tarefas = 6  # Após 6 ciclos sem tarefas, aumenta a pausa
+    # Limitar o número de workers para evitar sobrecarga
+    max_safe_workers = min(workers, 5)
+    if max_safe_workers < workers:
+        print(f"⚠️ Número de workers limitado a {max_safe_workers} para evitar sobrecarga (solicitado: {workers})")
     
-    while True:
-        print("[LOG] Loop principal do modo_batch rodando...")
+    print(f"Verificando até {batchsize} tarefas pendentes...")
+    ids_pendentes = verificar_tarefas_pendentes_lote(batchsize)
+    
+    if not ids_pendentes:
+        print("Nenhuma tarefa pendente encontrada.")
+        return
+        
+    print(f"Encontradas {len(ids_pendentes)} tarefas pendentes.")
+    
+    # Preparar lista de objetos CNPJ e IDs para processamento
+    tasks = []
+    for fila_id in ids_pendentes:
         try:
-            tarefas_ids = verificar_tarefas_pendentes_lote(batchsize)
-            print(f"[LOG] IDs retornados para processamento: {tarefas_ids}")
-            
-            if not tarefas_ids:
-                ciclos_sem_tarefas += 1
-                pausa = WAIT_TIMES["page_load"] if ciclos_sem_tarefas <= max_ciclos_sem_tarefas else 60
-                print(f"[LOG] Sem tarefas pendentes. Aguardando {pausa} segundos... (ciclo {ciclos_sem_tarefas})")
-                time.sleep(pausa)
+            task = get_task_by_id(fila_id)
+            if not task:
+                print(f"Tarefa com ID {fila_id} não encontrada no banco. Ignorando.")
                 continue
+                
+            cnpj_obj = CNPJ(
+                cnpj=task['cnpj'],
+                razao_social=task.get('razao_social') or "",
+                municipio=task.get('municipio') or ""
+            )
             
-            # Resetar contador quando encontrar tarefas
-            ciclos_sem_tarefas = 0
-            
-            # Iniciar com uma pausa para garantir que processos antigos do Chrome estejam encerrados
-            pausa_inicial = 15
-            print(f"[LOG] Pausa inicial de {pausa_inicial} segundos antes de iniciar novo lote...")
-            time.sleep(pausa_inicial)
-            
-            futures = []
-            for i, fila_id in enumerate(tarefas_ids):
-                print(f"[LOG] Submetendo tarefa {fila_id} para processamento ({i+1}/{len(tarefas_ids)}).")
-                # Pausa maior entre submissões
-                pausa_entre_submissoes = WAIT_TIMES["between_tasks"] * 3
-                print(f"[LOG] Aguardando {pausa_entre_submissoes} segundos antes de submeter próxima tarefa...")
-                time.sleep(pausa_entre_submissoes)
-                futures.append(executor.submit(processa_cnpj, fila_id))
-            
-            # Aguardar todas as tarefas concluírem
-            for future in futures:
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"[ERRO] Erro em uma das tarefas do lote: {e}")
-                    print(traceback.format_exc())
-            
-            print(f"[LOG] Lote de {len(tarefas_ids)} tarefas concluído.")
-            
-            if len(tarefas_ids) < batchsize:
-                pausa_lote_pequeno = WAIT_TIMES["between_tasks"] * 2
-                print(f"[LOG] Menos de {batchsize} tarefas pendentes. Aguardando {pausa_lote_pequeno} segundos antes de verificar novamente...")
-                time.sleep(pausa_lote_pequeno)
-            else:
-                pausa_entre_lotes = WAIT_TIMES["page_load"]
-                print(f"[LOG] Pausa de {pausa_entre_lotes} segundos entre lotes grandes...")
-                time.sleep(pausa_entre_lotes)
+            tasks.append((cnpj_obj, fila_id))
         except Exception as e:
-            print(f"[ERRO] Erro no modo batch: {e}")
-            print(traceback.format_exc())
-            print(f"[LOG] Aguardando {WAIT_TIMES['page_load']} segundos antes de tentar novamente...")
-            time.sleep(WAIT_TIMES['page_load'])
+            print(f"Erro ao preparar tarefa {fila_id} para processamento: {e}")
+            
+    if not tasks:
+        print("Nenhuma tarefa válida para processar.")
+        return
+        
+    print(f"Processando {len(tasks)} tarefas em modo batch com {max_safe_workers} workers...")
+    
+    # Processar as tarefas com limite de workers
+    with ThreadPoolExecutor(max_workers=max_safe_workers) as ex:
+        batch_results = []
+        for result in ex.map(lambda args: process_cnpj_on_website_sync(args, headless=True), tasks):
+            batch_results.append(result)
+    
+    print(f"Processamento em batch concluído. Resultados: {len(batch_results)} tarefas processadas.")
+    
+    # Atualizar o status das tarefas no banco
+    for i, (cnpj_obj, fila_id) in enumerate(tasks):
+        try:
+            result = batch_results[i] if i < len(batch_results) else None
+            
+            if not result:
+                status = "erro"
+                resultado = "[ERRO] Nenhum resultado retornado do processamento em batch"
+                full_result = ""
+            elif result.get("status") == "error":
+                status = "erro"
+                resultado = f"[ERRO] Falha no site: {result.get('message', 'Sem detalhes')}"
+                full_result = result.get("full_result", "")
+            elif result.get("status") == "success":
+                status = "concluido"
+                resultado = result.get("resultado") or result.get("status_divida") or "Processado com sucesso, sem retorno específico"
+                if len(resultado) > 2000:
+                    resultado = resultado[:1997] + "..."
+                full_result = result.get("full_result", "")
+            else:
+                status = "erro"
+                resultado = "[ERRO] Status desconhecido retornado pelo processamento em batch"
+                full_result = str(result)
+                
+            # Atualizar status da tarefa no banco
+            status_divida = result.get("status_divida") if result else None
+            pdf_path = next(iter(result.get("screenshots", [])), None) if result else None
+                
+            update_task_status(
+                fila_id, 
+                status, 
+                resultado, 
+                status_divida, 
+                pdf_path, 
+                full_result
+            )
+                
+            print(f"CNPJ {cnpj_obj.cnpj} (fila_id={fila_id}) processado em batch com status: {status}")
+        except Exception as e:
+            print(f"[ERRO] Falha ao atualizar status da tarefa {fila_id} após processamento em batch: {e}")
+    
+    print("Processamento em batch completo!")
 
 def modo_fila():
-    """
-    Executa o worker no modo tradicional, consumindo da fila do RabbitMQ
-    """
-    print("Iniciando modo fila com RabbitMQ")
-    # Conectar ao RabbitMQ e iniciar consumo com prefetch reduzido
+    print("Iniciando worker no modo fila...")
+    
+    # Conectar ao RabbitMQ
+    connection, channel = connect_to_rabbitmq()
+    
+    if not connection or not channel:
+        print("Falha ao conectar ao RabbitMQ. Encerrando worker.")
+        return
+    
     try:
-        connection = connect_to_rabbitmq()
-        channel = connection.channel()
-        channel.queue_declare(queue='fila_cnpj')
-        
-        # Reduzir prefetch_count de 10 para 3 para evitar sobrecarga quando múltiplos workers estão rodando
-        channel.basic_qos(prefetch_count=3)
-        
-        channel.basic_consume(queue='fila_cnpj', on_message_callback=callback)
+        # Bloquear e consumir mensagens da fila
         channel.start_consuming()
     except KeyboardInterrupt:
-        print("Worker interrompido pelo usuário")
+        print("Worker interrompido pelo usuário.")
     except Exception as e:
-        print(f"Erro no worker: {e}")
+        print(f"Erro no modo fila: {e}")
+    finally:
+        try:
+            if connection and connection.is_open:
+                connection.close()
+                print("Conexão com RabbitMQ fechada.")
+        except Exception as close_error:
+            print(f"Erro ao fechar conexão com RabbitMQ: {close_error}")
 
-if __name__ == "__main__":
+def get_task_by_id(fila_id):
+    """
+    Obtém uma tarefa específica pelo ID
+    
+    Args:
+        fila_id: ID da tarefa na fila
+        
+    Returns:
+        Dados da tarefa ou None se não encontrada
+    """
+    try:
+        supabase = get_supabase_client()
+        response = supabase.table("fila_cnpj").select("*").eq("id", fila_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        return None
+    except Exception as e:
+        print(f"[ERRO] Erro ao obter tarefa {fila_id}: {e}")
+        return None
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Worker para processamento de CNPJs')
-    parser.add_argument('--modo', type=str, choices=['fila', 'batch'], default='fila',
-                        help='Modo de operação: fila (RabbitMQ) ou batch (verificação em lote)')
-    parser.add_argument('--batchsize', type=int, default=30,
-                        help='Número de tarefas a serem processadas por lote (apenas para modo batch)')
-    parser.add_argument('--workers', type=int, default=2,
-                        help='Número de workers paralelos (apenas para modo batch)')
+    parser.add_argument('--modo', choices=['fila', 'batch'], default='fila', help='Modo de execução: fila (contínuo) ou batch (único)')
+    parser.add_argument('--batchsize', type=int, default=30, help='Quantidade de CNPJs a processar em modo batch')
+    parser.add_argument('--workers', type=int, default=2, help='Número de workers paralelos em modo batch')
     
     args = parser.parse_args()
     
+    print(f"Worker iniciando em modo: {args.modo}")
+    
     if args.modo == 'batch':
-        modo_batch(batchsize=args.batchsize, workers=args.workers)
+        modo_batch(args.batchsize, args.workers)
     else:
         modo_fila() 
         

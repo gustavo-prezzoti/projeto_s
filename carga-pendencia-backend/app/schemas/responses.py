@@ -50,7 +50,11 @@ class ListCNPJResponse(BaseModel):
     resultado: Optional[str] = None
     status_divida: Optional[str] = None
     pdf_path: Optional[str] = None
-    data_criacao: str
-    data_atualizacao: Optional[str] = None
+    created_at: str
+    updated_at: Optional[str] = None
     user_id: Optional[int] = None
-    full_result: Optional[str] = None 
+    full_result: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+        populate_by_name = True 

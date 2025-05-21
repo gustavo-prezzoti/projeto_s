@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
@@ -47,7 +47,14 @@ os.makedirs("document", exist_ok=True)
 app = FastAPI(
     title="CNPJ Processing API",
     description="API for processing CNPJ data and interacting with external websites",
-    version="1.0.0"
+    version="1.0.0",
+    # Add security scheme configuration for Bearer token
+    openapi_tags=[
+        {"name": "Authentication", "description": "Authentication operations"},
+        {"name": "CNPJ Processing", "description": "CNPJ processing operations"},
+        {"name": "Excel Upload", "description": "Excel file upload operations"}
+    ],
+    swagger_ui_parameters={"defaultModelsExpandDepth": -1},  # Hide schemas section by default
 )
 
 # Enable CORS for frontend
@@ -65,10 +72,73 @@ os.makedirs("document", exist_ok=True)
 # Mount the document directory as a static files directory
 app.mount("/document", StaticFiles(directory="document"), name="document")
 
-# Include routers
-app.include_router(cnpj.router)
-app.include_router(excel.router)
-app.include_router(auth.router)  # Incluir roteador de autenticação
+# Create an API router to group all endpoints under /api
+api_router = APIRouter(prefix="/api")
+
+# Include all routers under the /api prefix
+api_router.include_router(cnpj.router)
+api_router.include_router(excel.router)
+api_router.include_router(auth.router)  # Incluir roteador de autenticação
+
+# Add the API router to the main app
+app.include_router(api_router)
+
+# Filter paths in OpenAPI schema
+original_openapi = app.openapi
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    # Get the default OpenAPI schema
+    openapi_schema = original_openapi()
+    
+    # Add security scheme for Bearer token
+    openapi_schema["components"] = openapi_schema.get("components", {})
+    openapi_schema["components"]["securitySchemes"] = {
+        "Bearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your bearer token in the format: **Bearer &lt;token&gt;**"
+        }
+    }
+    
+    # Define which paths and methods to include
+    allowed_endpoints = {
+        "/api/cnpj/process": ["POST"],
+        "/api/cnpj/validate-excel": ["POST"], 
+        "/api/cnpj/reprocess-pending": ["POST"],
+        "/api/auth/token": ["POST"],
+        "/api/auth/register": ["POST"],
+        "/api/auth/register-first-user": ["POST"],
+        "/api/cnpj/delete-batch": ["DELETE"],
+        "/api/cnpj/{fila_id}": ["DELETE"]
+    }
+    
+    # Filter paths
+    filtered_paths = {}
+    for path, path_item in openapi_schema["paths"].items():
+        if path in allowed_endpoints:
+            # Filter methods for this path
+            filtered_path_item = {}
+            for method, operation in path_item.items():
+                # Convert method to uppercase for comparison
+                if method.upper() in allowed_endpoints[path]:
+                    # Add security requirement to protected endpoints
+                    if path != "/api/auth/token" and path != "/api/auth/register-first-user":
+                        operation["security"] = [{"Bearer": []}]
+                    filtered_path_item[method] = operation
+            
+            if filtered_path_item:  # Only add if there are allowed methods
+                filtered_paths[path] = filtered_path_item
+    
+    openapi_schema["paths"] = filtered_paths
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+# Override the openapi function
+app.openapi = custom_openapi
 
 # Cleanup function to kill any hanging chrome processes
 def cleanup_chrome_processes():
@@ -138,12 +208,12 @@ def handle_sigterm(*args):
 signal.signal(signal.SIGTERM, handle_sigterm)
 
 # Health check endpoint
-@app.get("/health")
+@app.get("/health", include_in_schema=False)
 async def health_check():
     return {"status": "ok", "timestamp": time.time()}
 
 # Root endpoint
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
     return {
         "message": "Welcome to CNPJ Processing API",

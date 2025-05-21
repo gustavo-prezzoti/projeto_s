@@ -1765,6 +1765,11 @@ class WebService:
                                         r"(constam|h[áa]|existem)\s*(pend[êe]ncias|d[íi]vidas|d[ée]bitos)|que\s+constam\s+d[íi]vidas",
                                         re.IGNORECASE,
                                     )
+                                    padrao_exigibilidade_suspensa = re.compile(
+                                        r"(com\s+exigibilidade\s+suspensa|com a exigibilidade suspensa)",
+                                        re.IGNORECASE,
+                                    )
+                                    
                                     # Primeiro vamos verificar se tem a palavra "não" junto com "constam"
                                     if padrao_nao_constam.search(
                                         texto_para_analise
@@ -1772,6 +1777,11 @@ class WebService:
                                         status_divida = (
                                             "Não constam pendências"
                                         )
+                                    # Verificar se tem menção à exigibilidade suspensa
+                                    elif padrao_exigibilidade_suspensa.search(
+                                        texto_para_analise
+                                    ):
+                                        status_divida = "Exigibilidade suspensa"
                                     # Se não tem "não constam" mas tem "constam", então constam dívidas
                                     elif padrao_constam.search(
                                         texto_para_analise
